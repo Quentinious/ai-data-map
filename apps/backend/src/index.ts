@@ -6,6 +6,8 @@ import { fileURLToPath } from "node:url";
 import { z } from "zod";
 import type { ApiError, Country } from "./types.js";
 import v1Router from "./routes/v1/index.js";
+import { loadDistricts } from "./services/loadDistricts.js";
+import { getFilteredListings } from "./services/loadListings.js";
 
 console.log("BOOT: active backend entrypoint: apps/backend/src/index.ts");
 
@@ -101,6 +103,52 @@ app.get("/api/countries/:countryCode", async (req, res, next) => {
 app.locals.getCountries = getCountries;
 
 app.use("/v1", v1Router);
+
+// GET /api/areas - returns all Novosibirsk districts
+app.get("/api/areas", async (_req, res, next) => {
+  try {
+    const districts = await loadDistricts();
+    res.json({ data: districts });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/listings - returns filtered listings
+app.get("/api/listings", async (req, res, next) => {
+  try {
+    const { districtId, rooms, minArea, maxArea } = req.query;
+
+    const roomsParsed = rooms !== undefined ? Number(rooms) : undefined;
+    if (roomsParsed !== undefined && (isNaN(roomsParsed) || ![1, 2, 3, 4].includes(roomsParsed))) {
+      sendError(res, 400, { code: "VALIDATION_ERROR", message: "rooms must be 1, 2, 3 or 4" });
+      return;
+    }
+
+    const minAreaParsed = minArea !== undefined ? Number(minArea) : undefined;
+    if (minAreaParsed !== undefined && isNaN(minAreaParsed)) {
+      sendError(res, 400, { code: "VALIDATION_ERROR", message: "minArea must be a number" });
+      return;
+    }
+
+    const maxAreaParsed = maxArea !== undefined ? Number(maxArea) : undefined;
+    if (maxAreaParsed !== undefined && isNaN(maxAreaParsed)) {
+      sendError(res, 400, { code: "VALIDATION_ERROR", message: "maxArea must be a number" });
+      return;
+    }
+
+    const listings = await getFilteredListings({
+      districtId: typeof districtId === "string" ? districtId : undefined,
+      rooms: roomsParsed,
+      minArea: minAreaParsed,
+      maxArea: maxAreaParsed,
+    });
+
+    res.json({ data: listings });
+  } catch (error) {
+    next(error);
+  }
+});
 
 app.use((_req, res) => {
   sendError(res, 404, {

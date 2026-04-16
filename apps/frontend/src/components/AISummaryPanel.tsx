@@ -1,28 +1,28 @@
 import { useEffect, useState } from "react";
 import {
-  generateCountrySummary,
-  type AICountrySummaryResponse
+  generateAreaSummary,
+  type AIAreaSummaryResponse
 } from "../api/ai";
 
 type AISummaryPanelProps = {
-  countryCode: string | null;
+  districtId: string | null;
 };
 
-export function AISummaryPanel({ countryCode }: AISummaryPanelProps) {
+export function AISummaryPanel({ districtId }: AISummaryPanelProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
-  const [data, setData] = useState<AICountrySummaryResponse | null>(null);
+  const [data, setData] = useState<AIAreaSummaryResponse | null>(null);
 
-  const canGenerate = Boolean(countryCode);
+  const canGenerate = Boolean(districtId);
 
   useEffect(() => {
     setLoading(false);
     setError("");
     setData(null);
-  }, [countryCode]);
+  }, [districtId]);
 
   const runGenerate = async () => {
-    if (!countryCode) {
+    if (!districtId) {
       return;
     }
 
@@ -30,7 +30,7 @@ export function AISummaryPanel({ countryCode }: AISummaryPanelProps) {
     setError("");
 
     try {
-      const summary = await generateCountrySummary(countryCode);
+      const summary = await generateAreaSummary(districtId);
       setData(summary);
     } catch (err: unknown) {
       setData(null);
@@ -49,7 +49,7 @@ export function AISummaryPanel({ countryCode }: AISummaryPanelProps) {
         </button>
       </div>
 
-      {!canGenerate && <p className="muted">Выберите страну, чтобы сгенерировать summary.</p>}
+      {!canGenerate && <p className="muted">Выберите район, чтобы сгенерировать summary.</p>}
       {loading && <p>Loading AI summary...</p>}
 
       {error && (
@@ -69,7 +69,7 @@ export function AISummaryPanel({ countryCode }: AISummaryPanelProps) {
             ))}
           </ul>
           <p className="asof-line">
-            Coverage: worldbank={data.dataCoverage.worldbank}, weather={data.dataCoverage.weather}
+            Район: {data.district.name} · набор данных: {data.dataset.mode}
           </p>
         </>
       )}

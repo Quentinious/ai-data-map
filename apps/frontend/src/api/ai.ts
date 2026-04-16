@@ -8,6 +8,17 @@ export type AICountrySummaryResponse = {
   };
 };
 
+export type AIAreaSummaryResponse = {
+  summary: string[];
+  district: {
+    id: string;
+    name: string;
+  };
+  dataset: {
+    mode: string;
+  };
+};
+
 export async function generateCountrySummary(countryCode: string): Promise<AICountrySummaryResponse> {
   const response = await fetch(`${baseUrl}/v1/ai/country-summary`, {
     method: "POST",
@@ -34,4 +45,32 @@ export async function generateCountrySummary(countryCode: string): Promise<AICou
   }
 
   return payload as AICountrySummaryResponse;
+}
+
+export async function generateAreaSummary(districtId: string): Promise<AIAreaSummaryResponse> {
+  const response = await fetch(`${baseUrl}/v1/ai/area-summary`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ districtId, language: "ru" })
+  });
+
+  const payload = (await response.json()) as
+    | AIAreaSummaryResponse
+    | { error?: { message?: string } };
+
+  if (!response.ok) {
+    const message =
+      "error" in payload && payload.error?.message
+        ? payload.error.message
+        : `Failed to generate area summary (${response.status})`;
+    throw new Error(message);
+  }
+
+  if (!("summary" in payload) || !Array.isArray((payload as AIAreaSummaryResponse).summary)) {
+    throw new Error("Invalid AI area summary response format");
+  }
+
+  return payload as AIAreaSummaryResponse;
 }

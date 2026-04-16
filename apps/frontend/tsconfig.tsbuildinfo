@@ -1,1 +1,0 @@
-{"root":["./src/App.tsx","./src/api.ts","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/api/ai.ts","./src/api/areaSnapshot.ts","./src/api/areas.ts","./src/api/snapshot.ts","./src/components/AISummaryPanel.tsx","./src/components/AreaCard.tsx","./src/components/CountryCard.tsx","./src/types/areaSnapshot.ts","./src/types/snapshot.ts"],"version":"6.0.2"}

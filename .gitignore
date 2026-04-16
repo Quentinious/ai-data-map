@@ -1,6 +1,7 @@
 node_modules/
 apps/*/node_modules/
 apps/*/dist/
+apps/**/*.tsbuildinfo
 frontend/node_modules/
 frontend/dist/
 backend/node_modules/

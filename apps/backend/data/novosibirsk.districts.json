@@ -1,0 +1,12 @@
+[
+  { "id": "centralny", "name": "Центральный" },
+  { "id": "zheleznodorozhny", "name": "Железнодорожный" },
+  { "id": "zaeltsovsky", "name": "Заельцовский" },
+  { "id": "kalininsky", "name": "Калининский" },
+  { "id": "leninsky", "name": "Ленинский" },
+  { "id": "kirovsky", "name": "Кировский" },
+  { "id": "oktyabrsky", "name": "Октябрьский" },
+  { "id": "sovetsky", "name": "Советский" },
+  { "id": "dzerzhinsky", "name": "Дзержинский" },
+  { "id": "pervomaysky", "name": "Первомайский" }
+]

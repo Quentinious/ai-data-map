@@ -196,3 +196,46 @@ body {
     min-height: 220px;
   }
 }
+
+.listing-table {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0;
+  list-style: none;
+}
+
+.listing-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.82rem;
+  padding: 4px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.listing-rooms {
+  font-weight: 600;
+  min-width: 28px;
+}
+
+.listing-area {
+  color: #475569;
+  min-width: 55px;
+}
+
+.listing-price {
+  color: #1e40af;
+  min-width: 100px;
+}
+
+.listing-ppm2 {
+  color: #047857;
+  min-width: 110px;
+}
+
+.listing-address {
+  color: #64748b;
+  flex: 1;
+  font-size: 0.78rem;
+}

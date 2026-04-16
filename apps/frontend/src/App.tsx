@@ -1,37 +1,36 @@
-import { useEffect, useMemo, useState } from "react";
-import { fetchCountries } from "./api";
-import { fetchCountrySnapshot } from "./api/snapshot";
+import { useEffect, useState } from "react";
+import { fetchAreas } from "./api/areas";
+import { fetchAreaSnapshot } from "./api/areaSnapshot";
 import { AISummaryPanel } from "./components/AISummaryPanel";
-import { CountryCard } from "./components/CountryCard";
-import type { CountrySnapshot } from "./types/snapshot";
-import type { Country } from "./types";
+import { AreaCard } from "./components/AreaCard";
+import type { AreaSnapshot, District } from "./types/areaSnapshot";
 
 export default function App() {
-  const [countries, setCountries] = useState<Country[]>([]);
-  const [selectedCode, setSelectedCode] = useState<string>("");
-  const [snapshot, setSnapshot] = useState<CountrySnapshot | null>(null);
-  const [countriesError, setCountriesError] = useState<string>("");
+  const [districts, setDistricts] = useState<District[]>([]);
+  const [selectedId, setSelectedId] = useState<string>("");
+  const [snapshot, setSnapshot] = useState<AreaSnapshot | null>(null);
+  const [districtsError, setDistrictsError] = useState<string>("");
   const [snapshotError, setSnapshotError] = useState<string>("");
   const [loadingSnapshot, setLoadingSnapshot] = useState<boolean>(false);
 
   useEffect(() => {
-    fetchCountries()
+    fetchAreas()
       .then((data) => {
-        setCountries(data);
+        setDistricts(data);
         if (data.length > 0) {
-          setSelectedCode(data[0].countryCode);
+          setSelectedId(data[0].id);
         }
       })
       .catch((err: unknown) => {
-        setCountriesError(err instanceof Error ? err.message : "Failed to load countries");
+        setDistrictsError(err instanceof Error ? err.message : "Failed to load districts");
       });
   }, []);
 
-  const loadSnapshot = (countryCode: string) => {
+  const loadSnapshot = (districtId: string) => {
     setLoadingSnapshot(true);
     setSnapshotError("");
 
-    fetchCountrySnapshot(countryCode)
+    fetchAreaSnapshot(districtId)
       .then((data) => {
         setSnapshot(data);
       })
@@ -45,46 +44,43 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (!selectedCode) {
+    if (!selectedId) {
       return;
     }
 
-    loadSnapshot(selectedCode);
-  }, [selectedCode]);
+    loadSnapshot(selectedId);
+  }, [selectedId]);
 
-  const selectedLabel = useMemo(() => {
-    const match = countries.find((country) => country.countryCode === selectedCode);
-    return match ? `${match.name} (${match.countryCode})` : "-";
-  }, [countries, selectedCode]);
+  const selectedLabel = districts.find((d) => d.id === selectedId)?.name ?? "-";
 
   return (
     <div className="page">
       <header className="topbar">
         <h1>AI Data Map</h1>
-        <p>MVP Sprint 1: country data explorer</p>
+        <p>Рынок жилья Новосибирска — анализ объявлений по районам</p>
       </header>
 
       <main className="layout">
         <section className="panel">
-          <h2>Country Selector</h2>
-          <label htmlFor="country-select">Choose country</label>
+          <h2>Выбор района</h2>
+          <label htmlFor="district-select">Район Новосибирска</label>
           <select
-            id="country-select"
-            value={selectedCode}
-            onChange={(event) => setSelectedCode(event.target.value)}
+            id="district-select"
+            value={selectedId}
+            onChange={(event) => setSelectedId(event.target.value)}
           >
-            {countries.map((country) => (
-              <option key={country.countryCode} value={country.countryCode}>
-                {country.name} ({country.countryCode})
+            {districts.map((district) => (
+              <option key={district.id} value={district.id}>
+                {district.name}
               </option>
             ))}
           </select>
 
           <div className="meta">
             <p>
-              <strong>Selected:</strong> {selectedLabel}
+              <strong>Выбран:</strong> {selectedLabel}
             </p>
-            {countriesError && <p className="error">{countriesError}</p>}
+            {districtsError && <p className="error">{districtsError}</p>}
           </div>
 
           {loadingSnapshot && <p>Loading snapshot...</p>}
@@ -92,15 +88,15 @@ export default function App() {
           {snapshotError && (
             <div className="snapshot-error-block">
               <p className="error">{snapshotError}</p>
-              <button type="button" onClick={() => loadSnapshot(selectedCode)} className="retry-button">
+              <button type="button" onClick={() => loadSnapshot(selectedId)} className="retry-button">
                 Retry
               </button>
             </div>
           )}
 
-          {snapshot && <CountryCard snapshot={snapshot} />}
+          {snapshot && <AreaCard snapshot={snapshot} />}
 
-          <AISummaryPanel countryCode={selectedCode || null} />
+          <AISummaryPanel districtId={selectedId || null} />
         </section>
 
         <section className="map-placeholder" aria-label="map placeholder">

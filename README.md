@@ -21,6 +21,7 @@ apps/
   - медиана/P25/P75 по цене, цене за м² и площади
   - распределение по комнатности
   - топ-5 дешевейших и дорогих по ₽/м²
+  - опциональные фильтры: `rooms`, `minArea`, `maxArea`, `minPrice`, `maxPrice`
 - `POST /v1/ai/area-summary` — AI-сводка по рынку района (mock-режим)
 - *(Legacy)* `GET /v1/countries/:code/snapshot` — snapshot страны (устарело)
 - *(Legacy)* `POST /v1/ai/country-summary` — AI-сводка страны (устарело)
@@ -73,7 +74,27 @@ curl http://127.0.0.1:4000/api/areas
 curl http://127.0.0.1:4000/v1/areas/centralny/snapshot
 ```
 
-### Snapshot района (PowerShell)
+### Snapshot с фильтрами (curl)
+
+```bash
+# 2-комнатные квартиры от 40 до 70 м²
+curl "http://127.0.0.1:4000/v1/areas/centralny/snapshot?rooms=2&minArea=40&maxArea=70"
+
+# Цена от 3 млн до 7 млн ₽
+curl "http://127.0.0.1:4000/v1/areas/centralny/snapshot?minPrice=3000000&maxPrice=7000000"
+```
+
+### Snapshot с фильтрами (PowerShell)
+
+```powershell
+# 2-комнатные квартиры от 40 до 70 м²
+Invoke-RestMethod -Uri "http://127.0.0.1:4000/v1/areas/centralny/snapshot?rooms=2&minArea=40&maxArea=70"
+
+# curl.exe (PowerShell-friendly, без кавычек-проблем)
+curl.exe -s "http://127.0.0.1:4000/v1/areas/centralny/snapshot?rooms=2&minArea=40&maxArea=70"
+```
+
+### Snapshot района (PowerShell — без фильтров)
 
 ```powershell
 Invoke-RestMethod -Uri "http://127.0.0.1:4000/v1/areas/centralny/snapshot"

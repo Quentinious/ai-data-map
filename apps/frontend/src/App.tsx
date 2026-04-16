@@ -3,7 +3,9 @@ import { fetchAreas } from "./api/areas";
 import { fetchAreaSnapshot } from "./api/areaSnapshot";
 import { AISummaryPanel } from "./components/AISummaryPanel";
 import { AreaCard } from "./components/AreaCard";
-import type { AreaSnapshot, District } from "./types/areaSnapshot";
+import { FiltersPanel } from "./components/FiltersPanel";
+import { ComparePanel } from "./components/ComparePanel";
+import type { AreaSnapshot, District, SnapshotFilters } from "./types/areaSnapshot";
 
 export default function App() {
   const [districts, setDistricts] = useState<District[]>([]);
@@ -12,6 +14,7 @@ export default function App() {
   const [districtsError, setDistrictsError] = useState<string>("");
   const [snapshotError, setSnapshotError] = useState<string>("");
   const [loadingSnapshot, setLoadingSnapshot] = useState<boolean>(false);
+  const [filters, setFilters] = useState<SnapshotFilters>({});
 
   useEffect(() => {
     fetchAreas()
@@ -26,11 +29,11 @@ export default function App() {
       });
   }, []);
 
-  const loadSnapshot = (districtId: string) => {
+  const loadSnapshot = (districtId: string, currentFilters: SnapshotFilters) => {
     setLoadingSnapshot(true);
     setSnapshotError("");
 
-    fetchAreaSnapshot(districtId)
+    fetchAreaSnapshot(districtId, currentFilters)
       .then((data) => {
         setSnapshot(data);
       })
@@ -48,8 +51,12 @@ export default function App() {
       return;
     }
 
-    loadSnapshot(selectedId);
-  }, [selectedId]);
+    loadSnapshot(selectedId, filters);
+  }, [selectedId, filters]);
+
+  const handleFiltersApply = (newFilters: SnapshotFilters) => {
+    setFilters(newFilters);
+  };
 
   const selectedLabel = districts.find((d) => d.id === selectedId)?.name ?? "-";
 
@@ -83,18 +90,27 @@ export default function App() {
             {districtsError && <p className="error">{districtsError}</p>}
           </div>
 
+          <FiltersPanel onApply={handleFiltersApply} activeFilters={filters} />
+
           {loadingSnapshot && <p>Loading snapshot...</p>}
 
           {snapshotError && (
             <div className="snapshot-error-block">
               <p className="error">{snapshotError}</p>
-              <button type="button" onClick={() => loadSnapshot(selectedId)} className="retry-button">
+              <button type="button" onClick={() => loadSnapshot(selectedId, filters)} className="retry-button">
                 Retry
               </button>
             </div>
           )}
 
-          {snapshot && <AreaCard snapshot={snapshot} />}
+          {snapshot && (
+            <>
+              <p className="listing-count-line">
+                Найдено объявлений: <strong>{snapshot.counts.totalListings}</strong>
+              </p>
+              <AreaCard snapshot={snapshot} />
+            </>
+          )}
 
           <AISummaryPanel districtId={selectedId || null} />
         </section>
@@ -104,6 +120,14 @@ export default function App() {
           <p>Map integration is a Sprint 2 task. This area is reserved for the map canvas.</p>
         </section>
       </main>
+
+      {districts.length > 0 && selectedId && (
+        <ComparePanel
+          districts={districts}
+          primaryDistrictId={selectedId}
+          filters={filters}
+        />
+      )}
     </div>
   );
 }

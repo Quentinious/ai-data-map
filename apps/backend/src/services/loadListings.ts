@@ -24,6 +24,8 @@ export type ListingsFilter = {
   rooms?: number;
   minArea?: number;
   maxArea?: number;
+  minPrice?: number;
+  maxPrice?: number;
 };
 
 export async function getFilteredListings(filter: ListingsFilter): Promise<Listing[]> {
@@ -43,6 +45,14 @@ export async function getFilteredListings(filter: ListingsFilter): Promise<Listi
     }
 
     if (filter.maxArea !== undefined && listing.areaM2 > filter.maxArea) {
+      return false;
+    }
+
+    if (filter.minPrice !== undefined && listing.priceRub < filter.minPrice) {
+      return false;
+    }
+
+    if (filter.maxPrice !== undefined && listing.priceRub > filter.maxPrice) {
       return false;
     }
 

@@ -20,6 +20,14 @@ export type ListingWithPricePerM2 = {
   pricePerM2: number;
 };
 
+export type SnapshotFilters = {
+  rooms?: number;
+  minArea?: number;
+  maxArea?: number;
+  minPrice?: number;
+  maxPrice?: number;
+};
+
 export type AreaSnapshot = {
   district: {
     id: string;
@@ -30,6 +38,7 @@ export type AreaSnapshot = {
     mode: "sample";
     updatedAt: string;
   };
+  filtersApplied: SnapshotFilters;
   counts: {
     totalListings: number;
     byRooms: {

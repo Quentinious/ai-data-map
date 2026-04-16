@@ -1,4 +1,4 @@
-import type { AreaSnapshot, ListingWithPricePerM2 } from "../dto/areaSnapshot.js";
+import type { AreaSnapshot, ListingWithPricePerM2, SnapshotFilters } from "../dto/areaSnapshot.js";
 import type { Listing } from "../dto/listing.js";
 import { getDistrictById } from "./loadDistricts.js";
 import { getFilteredListings } from "./loadListings.js";
@@ -33,14 +33,14 @@ function withPricePerM2(listing: Listing): ListingWithPricePerM2 {
   };
 }
 
-export async function buildAreaSnapshot(districtId: string): Promise<AreaSnapshot> {
+export async function buildAreaSnapshot(districtId: string, filters: SnapshotFilters = {}): Promise<AreaSnapshot> {
   const district = await getDistrictById(districtId);
 
   if (!district) {
     throw createCodedError("DISTRICT_NOT_FOUND", 404, `District not found: ${districtId}`);
   }
 
-  const rawListings = await getFilteredListings({ districtId });
+  const rawListings = await getFilteredListings({ districtId, ...filters });
   const listings = rawListings.filter(isValidListing);
 
   if (listings.length === 0) {
@@ -64,6 +64,16 @@ export async function buildAreaSnapshot(districtId: string): Promise<AreaSnapsho
   const cheapestByM2 = sortedByM2Asc.slice(0, 5);
   const expensiveByM2 = [...sortedByM2Asc].reverse().slice(0, 5);
 
+  const warnings: string[] = [
+    "Данный набор данных является синтетическим (sample). Не используйте для реальных сделок.",
+  ];
+
+  if (listings.length < 10) {
+    warnings.push(
+      `Малая выборка: ${listings.length} объявлений после применения фильтров. Статистика может быть неточной.`
+    );
+  }
+
   return {
     district: { id: district.id, name: district.name },
     generatedAt: new Date().toISOString(),
@@ -71,6 +81,7 @@ export async function buildAreaSnapshot(districtId: string): Promise<AreaSnapsho
       mode: "sample",
       updatedAt: "2025-10-01T00:00:00Z",
     },
+    filtersApplied: filters,
     counts: {
       totalListings: listings.length,
       byRooms,
@@ -82,8 +93,6 @@ export async function buildAreaSnapshot(districtId: string): Promise<AreaSnapsho
       cheapestByM2,
       expensiveByM2,
     },
-    warnings: [
-      "Данный набор данных является синтетическим (sample). Не используйте для реальных сделок.",
-    ],
+    warnings,
   };
 }

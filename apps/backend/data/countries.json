@@ -1,0 +1,12 @@
+[
+  { "countryCode": "US", "name": "United States", "region": "North America", "incomeLevel": "High income" },
+  { "countryCode": "CA", "name": "Canada", "region": "North America", "incomeLevel": "High income" },
+  { "countryCode": "BR", "name": "Brazil", "region": "Latin America", "incomeLevel": "Upper middle income" },
+  { "countryCode": "DE", "name": "Germany", "region": "Europe", "incomeLevel": "High income" },
+  { "countryCode": "FR", "name": "France", "region": "Europe", "incomeLevel": "High income" },
+  { "countryCode": "IN", "name": "India", "region": "South Asia", "incomeLevel": "Lower middle income" },
+  { "countryCode": "JP", "name": "Japan", "region": "East Asia", "incomeLevel": "High income" },
+  { "countryCode": "NG", "name": "Nigeria", "region": "Sub-Saharan Africa", "incomeLevel": "Lower middle income" },
+  { "countryCode": "ZA", "name": "South Africa", "region": "Sub-Saharan Africa", "incomeLevel": "Upper middle income" },
+  { "countryCode": "AU", "name": "Australia", "region": "Oceania", "incomeLevel": "High income" }
+]

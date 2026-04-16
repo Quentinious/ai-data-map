@@ -1,0 +1,8 @@
+[
+  { "countryCode": "US", "name": "United States", "region": "North America" },
+  { "countryCode": "CA", "name": "Canada", "region": "North America" },
+  { "countryCode": "DE", "name": "Germany", "region": "Europe" },
+  { "countryCode": "FR", "name": "France", "region": "Europe" },
+  { "countryCode": "IN", "name": "India", "region": "South Asia" },
+  { "countryCode": "JP", "name": "Japan", "region": "East Asia" }
+]

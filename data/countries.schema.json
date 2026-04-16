@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Countries Catalog",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["countryCode", "name"],
+    "properties": {
+      "countryCode": {
+        "type": "string",
+        "pattern": "^[A-Z]{2}$",
+        "description": "ISO2 country code"
+      },
+      "name": {
+        "type": "string",
+        "minLength": 1
+      },
+      "region": {
+        "type": "string"
+      }
+    }
+  }
+}

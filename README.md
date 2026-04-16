@@ -61,3 +61,19 @@ npm run dev
 - World Bank
 - OpenWeather
 - AI providers
+
+## AI Summary API (Windows examples)
+
+PowerShell (`Invoke-RestMethod`):
+
+```powershell
+$body = @{ countryCode = "US"; language = "ru" } | ConvertTo-Json -Compress
+Invoke-RestMethod -Uri "http://127.0.0.1:4000/v1/ai/country-summary" -Method Post -ContentType "application/json" -Body $body
+```
+
+`curl` with body file (PowerShell-safe):
+
+```powershell
+@'{"countryCode":"US","language":"ru"}'@ | Set-Content -Path body.json -NoNewline
+curl.exe -s -X POST http://127.0.0.1:4000/v1/ai/country-summary -H "Content-Type: application/json" --data-binary @body.json
+```

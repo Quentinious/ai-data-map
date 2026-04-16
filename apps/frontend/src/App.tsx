@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { fetchCountries, fetchCountryByCode } from "./api";
-import type { Country, CountryDetails } from "./types";
+import { fetchCountries } from "./api";
+import { fetchCountrySnapshot } from "./api/snapshot";
+import { AISummaryPanel } from "./components/AISummaryPanel";
+import { CountryCard } from "./components/CountryCard";
+import type { CountrySnapshot } from "./types/snapshot";
+import type { Country } from "./types";
 
 export default function App() {
   const [countries, setCountries] = useState<Country[]>([]);
   const [selectedCode, setSelectedCode] = useState<string>("");
-  const [selectedCountry, setSelectedCountry] = useState<CountryDetails | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
+  const [snapshot, setSnapshot] = useState<CountrySnapshot | null>(null);
+  const [countriesError, setCountriesError] = useState<string>("");
+  const [snapshotError, setSnapshotError] = useState<string>("");
+  const [loadingSnapshot, setLoadingSnapshot] = useState<boolean>(false);
 
   useEffect(() => {
     fetchCountries()
@@ -18,25 +23,33 @@ export default function App() {
         }
       })
       .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Failed to load countries");
+        setCountriesError(err instanceof Error ? err.message : "Failed to load countries");
       });
   }, []);
+
+  const loadSnapshot = (countryCode: string) => {
+    setLoadingSnapshot(true);
+    setSnapshotError("");
+
+    fetchCountrySnapshot(countryCode)
+      .then((data) => {
+        setSnapshot(data);
+      })
+      .catch((err: unknown) => {
+        setSnapshot(null);
+        setSnapshotError(err instanceof Error ? err.message : "Failed to load snapshot");
+      })
+      .finally(() => {
+        setLoadingSnapshot(false);
+      });
+  };
 
   useEffect(() => {
     if (!selectedCode) {
       return;
     }
 
-    setLoading(true);
-    setError("");
-
-    fetchCountryByCode(selectedCode)
-      .then((data) => setSelectedCountry(data))
-      .catch((err: unknown) => {
-        setError(err instanceof Error ? err.message : "Failed to load country details");
-        setSelectedCountry(null);
-      })
-      .finally(() => setLoading(false));
+    loadSnapshot(selectedCode);
   }, [selectedCode]);
 
   const selectedLabel = useMemo(() => {
@@ -71,27 +84,23 @@ export default function App() {
             <p>
               <strong>Selected:</strong> {selectedLabel}
             </p>
-            {loading && <p>Loading country details...</p>}
-            {error && <p className="error">{error}</p>}
+            {countriesError && <p className="error">{countriesError}</p>}
           </div>
 
-          {selectedCountry && (
-            <article className="card">
-              <h3>{selectedCountry.name}</h3>
-              <p>
-                <strong>ISO2:</strong> {selectedCountry.countryCode}
-              </p>
-              <p>
-                <strong>Region:</strong> {selectedCountry.region ?? "n/a"}
-              </p>
-              <p>
-                <strong>Income level:</strong> {selectedCountry.incomeLevel ?? "n/a"}
-              </p>
-              <p>
-                <strong>AI summary:</strong> {selectedCountry.aiSummary}
-              </p>
-            </article>
+          {loadingSnapshot && <p>Loading snapshot...</p>}
+
+          {snapshotError && (
+            <div className="snapshot-error-block">
+              <p className="error">{snapshotError}</p>
+              <button type="button" onClick={() => loadSnapshot(selectedCode)} className="retry-button">
+                Retry
+              </button>
+            </div>
           )}
+
+          {snapshot && <CountryCard snapshot={snapshot} />}
+
+          <AISummaryPanel countryCode={selectedCode || null} />
         </section>
 
         <section className="map-placeholder" aria-label="map placeholder">

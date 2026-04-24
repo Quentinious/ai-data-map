@@ -8,6 +8,8 @@
 apps/
   backend/   — Node.js/TypeScript Express API
   frontend/  — Vite/React TypeScript UI
+tools/
+  ingest/    — Инструменты импорта данных
 ```
 
 ## Что включено
@@ -38,7 +40,69 @@ apps/
 - `apps/backend/data/novosibirsk.districts.json` — 10 районов Новосибирска
 - `apps/backend/data/listings.sample.json` — ~220 синтетических объявлений
 
-> **Важно:** данные синтетические (sample), предназначены только для демонстрации.
+> **Важно:** данные по умолчанию синтетические (sample), предназначены только для демонстрации.
+> Для подключения реальных данных используйте шаги ниже.
+
+## Работа с реальными данными (экспорт → импорт → запуск)
+
+### Шаг 1: Экспорт из rest-app.net
+
+Экспортируйте объявления из парсера **rest-app.net** в формате **CSV/TSV** или **XLSX**.
+
+Убедитесь, что выгрузка включает колонки:
+`uID`, `Дата`, `Название`, `Цена`, `Город`, `Район`, `Адрес`, `Метро`,
+`Категория`, `Подкатегория`, `Ссылка на объявление`, `Параметры`,
+`Тип пользователя`, `Долгота`, `Широта`
+
+### Шаг 2: Конвертация в формат listings JSON
+
+```bash
+# TSV/CSV
+npx tsx tools/ingest/restapp-import.ts /path/to/export.tsv /path/to/listings.real.json
+
+# XLSX
+npx tsx tools/ingest/restapp-import.ts /path/to/export.xlsx /path/to/listings.real.json
+```
+
+Скрипт:
+- Автоматически определяет формат (TSV/CSV/XLSX)
+- Фильтрует только объявления из Новосибирска → Недвижимость → Квартиры
+- Нормализует район к ID из `novosibirsk.districts.json`
+- Выводит статистику по пропущенным строкам и причинам
+
+Пример вывода:
+```
+Read 1500 data rows
+
+Results:
+  Kept:    1243
+  Skipped: 257
+
+Skip reasons:
+    200  city="Москва" (not Новосибирск)
+     57  unknown district: "пригород"
+```
+
+### Шаг 3: Запуск с реальными данными
+
+Укажите путь к сгенерированному файлу через переменную окружения `LISTINGS_DATA_PATH`:
+
+```bash
+# Создайте или отредактируйте apps/backend/.env
+LISTINGS_DATA_PATH=/path/to/listings.real.json
+```
+
+Или передайте переменную прямо при запуске:
+
+```bash
+LISTINGS_DATA_PATH=/path/to/listings.real.json npm run dev -w apps/backend
+```
+
+Когда `LISTINGS_DATA_PATH` задан — бэкенд автоматически переключается в режим `"real"`:
+- В поле `dataset.mode` ответа API будет `"real"` вместо `"sample"`
+- Синтетическое предупреждение не отображается
+
+Если `LISTINGS_DATA_PATH` не задан — используется встроенный sample-датасет.
 
 ## Запуск
 
@@ -57,7 +121,7 @@ Frontend: http://localhost:5173
 
 ## Переменные окружения
 
-- `apps/backend/.env.example` — настройки backend (AI_USE_MOCK, WB_BASE_URL, OPENWEATHER_API_KEY…)
+- `apps/backend/.env.example` — настройки backend (AI_USE_MOCK, WB_BASE_URL, OPENWEATHER_API_KEY, **LISTINGS_DATA_PATH**…)
 - `apps/frontend/.env.example` — `VITE_BACKEND_BASE_URL`
 
 ## API Examples
@@ -133,4 +197,3 @@ curl "http://127.0.0.1:4000/api/listings?districtId=centralny&rooms=2"
 Для подключения реального провайдера установите `AI_USE_MOCK=false` и настройте `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL` в `apps/backend/.env`.
 
 ```
-

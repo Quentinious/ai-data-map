@@ -1,7 +1,7 @@
 import type { AreaSnapshot, ListingWithPricePerM2, SnapshotFilters } from "../dto/areaSnapshot.js";
 import type { Listing } from "../dto/listing.js";
 import { getDistrictById } from "./loadDistricts.js";
-import { getFilteredListings } from "./loadListings.js";
+import { getDatasetMode, getFilteredListings, getListingsUpdatedAt } from "./loadListings.js";
 import { computeStats } from "./statsHelpers.js";
 
 type CodedError = Error & {
@@ -64,9 +64,14 @@ export async function buildAreaSnapshot(districtId: string, filters: SnapshotFil
   const cheapestByM2 = sortedByM2Asc.slice(0, 5);
   const expensiveByM2 = [...sortedByM2Asc].reverse().slice(0, 5);
 
-  const warnings: string[] = [
-    "Данный набор данных является синтетическим (sample). Не используйте для реальных сделок.",
-  ];
+  const warnings: string[] = [];
+  const datasetMode = getDatasetMode();
+
+  if (datasetMode === "sample") {
+    warnings.push(
+      "Данный набор данных является синтетическим (sample). Не используйте для реальных сделок."
+    );
+  }
 
   if (listings.length < 10) {
     warnings.push(
@@ -78,8 +83,8 @@ export async function buildAreaSnapshot(districtId: string, filters: SnapshotFil
     district: { id: district.id, name: district.name },
     generatedAt: new Date().toISOString(),
     dataset: {
-      mode: "sample",
-      updatedAt: "2025-10-01T00:00:00Z",
+      mode: getDatasetMode(),
+      updatedAt: getListingsUpdatedAt(),
     },
     filtersApplied: filters,
     counts: {

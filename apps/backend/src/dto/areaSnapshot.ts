@@ -18,6 +18,8 @@ export type SnapshotFilters = {
   maxPrice?: number;
 };
 
+export type DatasetMode = "sample" | "real";
+
 export type AreaSnapshot = {
   district: {
     id: string;
@@ -25,7 +27,7 @@ export type AreaSnapshot = {
   };
   generatedAt: string;
   dataset: {
-    mode: "sample";
+    mode: DatasetMode;
     updatedAt: string;
   };
   filtersApplied: SnapshotFilters;

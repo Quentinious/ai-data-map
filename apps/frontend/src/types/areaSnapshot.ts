@@ -6,7 +6,7 @@ export type PriceStats = {
 
 export type ListingWithPricePerM2 = {
   id: string;
-  source: "sample";
+  source: "sample" | "avito_restapp";
   url: string;
   districtId: string;
   address: string;
@@ -35,7 +35,7 @@ export type AreaSnapshot = {
   };
   generatedAt: string;
   dataset: {
-    mode: "sample";
+    mode: "sample" | "real";
     updatedAt: string;
   };
   filtersApplied: SnapshotFilters;

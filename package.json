@@ -13,7 +13,8 @@
   "license": "ISC",
   "private": true,
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "tools"
   ],
   "devDependencies": {
     "concurrently": "^9.2.1"

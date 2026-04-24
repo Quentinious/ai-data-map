@@ -5,9 +5,11 @@ export type District = {
 
 export type BuildingType = "panel" | "brick" | "monolith" | "unknown";
 
+export type ListingSource = "sample" | "avito_restapp";
+
 export type Listing = {
   id: string;
-  source: "sample";
+  source: ListingSource;
   url: string;
   districtId: string;
   address: string;
@@ -18,4 +20,10 @@ export type Listing = {
   floor?: number;
   totalFloors?: number;
   buildingType: BuildingType;
+  lat?: number;
+  lon?: number;
+  metro?: string;
+  userType?: string;
+  category?: string;
+  subcategory?: string;
 };

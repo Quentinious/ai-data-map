@@ -5,17 +5,48 @@ import type { Listing } from "../dto/listing.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const listingsFilePath = path.resolve(__dirname, "../../data/listings.sample.json");
+const defaultListingsPath = path.resolve(__dirname, "../../data/listings.sample.json");
+
+export type ListingsFile =
+  | Listing[]
+  | { updatedAt: string; source?: string; listings: Listing[] };
 
 let listingsCache: Listing[] | null = null;
+let listingsUpdatedAt: string | null = null;
+
+function resolveListingsPath(): string {
+  const envPath = process.env["LISTINGS_DATA_PATH"];
+  if (envPath) {
+    return path.isAbsolute(envPath) ? envPath : path.resolve(process.cwd(), envPath);
+  }
+  return defaultListingsPath;
+}
+
+export function getListingsUpdatedAt(): string {
+  return listingsUpdatedAt ?? "2025-10-01T00:00:00Z";
+}
+
+export function getDatasetMode(): "sample" | "real" {
+  return process.env["LISTINGS_DATA_PATH"] ? "real" : "sample";
+}
 
 export async function loadListings(): Promise<Listing[]> {
   if (listingsCache) {
     return listingsCache;
   }
 
-  const fileContent = await readFile(listingsFilePath, "utf-8");
-  listingsCache = JSON.parse(fileContent) as Listing[];
+  const filePath = resolveListingsPath();
+  const fileContent = await readFile(filePath, "utf-8");
+  const parsed = JSON.parse(fileContent) as ListingsFile;
+
+  if (Array.isArray(parsed)) {
+    listingsCache = parsed;
+    listingsUpdatedAt = null;
+  } else {
+    listingsCache = parsed.listings;
+    listingsUpdatedAt = parsed.updatedAt;
+  }
+
   return listingsCache;
 }
 

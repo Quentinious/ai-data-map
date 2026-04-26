@@ -1,7 +1,9 @@
 import type { AreaSnapshot } from "../dto/areaSnapshot.js";
 
 export type AreaSummaryResult = {
-  summary: string[];
+  summaryPoints: string[];
+  warnings: string[];
+  generatedAt: string;
   district: {
     id: string;
     name: string;
@@ -48,17 +50,28 @@ function buildMockAreaSummary(snapshot: AreaSnapshot): AreaSummaryResult {
     .map(([rooms, cnt]) => `${rooms}-к: ${cnt}`)
     .join(", ");
 
-  const summary: string[] = [
+  const summaryPoints: string[] = [
     `Район «${district.name}»: анализ основан на ${counts.totalListings} объявлениях (выборка: ${snapshot.dataset.mode}).`,
     `Медианная цена — ${formatPrice(priceRub.median)}, диапазон P25–P75: ${formatPrice(priceRub.p25)} – ${formatPrice(priceRub.p75)}.`,
     `Медианная цена за м² — ${pricePerM2Rub.median.toLocaleString("ru-RU")} ₽/м², диапазон P25–P75: ${pricePerM2Rub.p25.toLocaleString("ru-RU")} – ${pricePerM2Rub.p75.toLocaleString("ru-RU")} ₽/м².`,
     `Медианная площадь квартиры — ${areaM2.median} м² (P25: ${areaM2.p25} м², P75: ${areaM2.p75} м²).`,
     `Распределение по комнатности: ${roomDistParts || "нет данных"}.`,
-    `Внимание: данные синтетические (sample) и предназначены только для демонстрации.`,
   ];
 
+  const warnings: string[] = [];
+
+  if (snapshot.dataset.mode === "sample") {
+    warnings.push("Внимание: данные синтетические (sample) и предназначены только для демонстрации.");
+  }
+
+  if (shouldUseMock()) {
+    warnings.push("AI Summary сгенерирован в мок-режиме (AI_USE_MOCK=true). Результаты не являются реальным AI-анализом.");
+  }
+
   return {
-    summary,
+    summaryPoints,
+    warnings,
+    generatedAt: new Date().toISOString(),
     district: { id: district.id, name: district.name },
     dataset: { mode: snapshot.dataset.mode },
   };

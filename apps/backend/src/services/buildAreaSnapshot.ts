@@ -1,7 +1,7 @@
 import type { AreaSnapshot, ListingWithPricePerM2, SnapshotFilters } from "../dto/areaSnapshot.js";
 import type { Listing } from "../dto/listing.js";
 import { getDistrictById } from "./loadDistricts.js";
-import { getDatasetMode, getFilteredListings, getListingsUpdatedAt } from "./loadListings.js";
+import { getDatasetMode, getDatasetStatus, getFilteredListings, getListingsUpdatedAt } from "./loadListings.js";
 import { computeStats } from "./statsHelpers.js";
 
 type CodedError = Error & {
@@ -33,6 +33,13 @@ function withPricePerM2(listing: Listing): ListingWithPricePerM2 {
   };
 }
 
+function classifyUserType(rawUserType: string | undefined): "private" | "agency" | "unknown" {
+  const s = (rawUserType ?? "").toLowerCase();
+  if (s.includes("агент") || s.includes("юр")) return "agency";
+  if (s.includes("частн") || s.includes("физ")) return "private";
+  return "unknown";
+}
+
 export async function buildAreaSnapshot(districtId: string, filters: SnapshotFilters = {}): Promise<AreaSnapshot> {
   const district = await getDistrictById(districtId);
 
@@ -40,12 +47,19 @@ export async function buildAreaSnapshot(districtId: string, filters: SnapshotFil
     throw createCodedError("DISTRICT_NOT_FOUND", 404, `District not found: ${districtId}`);
   }
 
+  // Count listings before snapshot filters (only districtId filter)
+  const allDistrictListings = await getFilteredListings({ districtId });
+  const validDistrictListings = allDistrictListings.filter(isValidListing);
+  const listingCountBeforeFilters = validDistrictListings.length;
+
   const rawListings = await getFilteredListings({ districtId, ...filters });
   const listings = rawListings.filter(isValidListing);
 
   if (listings.length === 0) {
     throw createCodedError("NO_LISTINGS", 404, `No listings found for district: ${districtId}`);
   }
+
+  const listingCountAfterFilters = listings.length;
 
   const listingsWithPpm2 = listings.map(withPricePerM2);
 
@@ -59,6 +73,12 @@ export async function buildAreaSnapshot(districtId: string, filters: SnapshotFil
     3: listings.filter((l) => l.rooms === 3).length,
     4: listings.filter((l) => l.rooms === 4).length,
   };
+
+  // Composition: userType breakdown
+  const compositionByUserType = { private: 0, agency: 0, unknown: 0 };
+  for (const l of listings) {
+    compositionByUserType[classifyUserType(l.userType)]++;
+  }
 
   const sortedByM2Asc = [...listingsWithPpm2].sort((a, b) => a.pricePerM2 - b.pricePerM2);
   const cheapestByM2 = sortedByM2Asc.slice(0, 5);
@@ -79,6 +99,21 @@ export async function buildAreaSnapshot(districtId: string, filters: SnapshotFil
     );
   }
 
+  // Warn if too much data was dropped during import (>30%)
+  const status = await getDatasetStatus();
+  if (
+    status.droppedListings !== null &&
+    status.totalListings + status.droppedListings > 0
+  ) {
+    const totalImported = status.totalListings + status.droppedListings;
+    const dropPct = (status.droppedListings / totalImported) * 100;
+    if (dropPct > 30) {
+      warnings.push(
+        `Предупреждение: при импорте было отброшено ${dropPct.toFixed(1)}% записей (${status.droppedListings} из ${totalImported}).`
+      );
+    }
+  }
+
   return {
     district: { id: district.id, name: district.name },
     generatedAt: new Date().toISOString(),
@@ -89,6 +124,12 @@ export async function buildAreaSnapshot(districtId: string, filters: SnapshotFil
     filtersApplied: filters,
     counts: {
       totalListings: listings.length,
+      byRooms,
+    },
+    listingCountBeforeFilters,
+    listingCountAfterFilters,
+    composition: {
+      byUserType: compositionByUserType,
       byRooms,
     },
     priceRub: priceRubStats,

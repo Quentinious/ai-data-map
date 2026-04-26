@@ -13,6 +13,7 @@ export async function fetchAreaSnapshot(districtId: string, filters?: SnapshotFi
   if (filters?.maxArea !== undefined) params.set("maxArea", String(filters.maxArea));
   if (filters?.minPrice !== undefined) params.set("minPrice", String(filters.minPrice));
   if (filters?.maxPrice !== undefined) params.set("maxPrice", String(filters.maxPrice));
+  if (filters?.userType !== undefined && filters.userType !== "any") params.set("userType", filters.userType);
 
   const query = params.toString();
   const url = `${baseUrl}/v1/areas/${encodeURIComponent(districtId)}/snapshot${query ? `?${query}` : ""}`;

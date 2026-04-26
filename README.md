@@ -18,12 +18,13 @@ tools/
 
 - `GET /health` — проверка работоспособности сервиса
 - `GET /api/areas` — список районов Новосибирска
+- `GET /api/dataset/status` — статус и качество набора данных (режим, источник, счётчики дедупликации/отброшенных записей)
 - `GET /api/listings?districtId=...&rooms=...&minArea=...&maxArea=...` — объявления с фильтрацией
 - `GET /v1/areas/:districtId/snapshot` — глубокая аналитика по выбранному району:
   - медиана/P25/P75 по цене, цене за м² и площади
-  - распределение по комнатности
+  - распределение по комнатности и типу продавца
   - топ-5 дешевейших и дорогих по ₽/м²
-  - опциональные фильтры: `rooms`, `minArea`, `maxArea`, `minPrice`, `maxPrice`
+  - опциональные фильтры: `rooms`, `minArea`, `maxArea`, `minPrice`, `maxPrice`, `userType`
 - `POST /v1/ai/area-summary` — AI-сводка по рынку района (mock-режим)
 - *(Legacy)* `GET /v1/countries/:code/snapshot` — snapshot страны (устарело)
 - *(Legacy)* `POST /v1/ai/country-summary` — AI-сводка страны (устарело)
@@ -31,8 +32,10 @@ tools/
 ### Frontend (`apps/frontend`)
 
 - Выпадающий список районов Новосибирска
-- Карточка аналитики района (AreaCard): цены, цена/м², площадь, топ-5 объявлений
+- Карточка аналитики района (AreaCard): цены, цена/м², площадь, топ-5 объявлений, состав по типу продавца
+- Панель фильтров: комнатность, тип продавца (Все / Частные / Агентства), площадь, цена — с активными чипами
 - Панель AI Summary с кнопкой генерации
+- Панель сравнения двух районов (ComparePanel) — использует те же фильтры включая тип продавца
 - Состояния loading / error + кнопка Retry
 
 ## Данные
@@ -68,19 +71,30 @@ npx tsx tools/ingest/restapp-import.ts /path/to/export.xlsx /path/to/listings.re
 - Автоматически определяет формат (TSV/CSV/XLSX)
 - Фильтрует только объявления из Новосибирска → Недвижимость → Квартиры
 - Нормализует район к ID из `novosibirsk.districts.json`
-- Выводит статистику по пропущенным строкам и причинам
+- **Дедупликация** — убирает дубли сначала по URL, затем по ID
+- **Фильтрация выбросов** — отбрасывает записи с аномальными ценой, площадью или ценой за м²
+- Выводит подробный отчёт: входящие строки, ошибки парсинга, дедупликация, выбросы, итого оставлено
 
 Пример вывода:
 ```
 Read 1500 data rows
 
-Results:
-  Kept:    1243
-  Skipped: 257
+── Import Report ──────────────────────────────────────
+  Input rows:        1500
+  Parse failures:    200
+  Dedup removed:     12
+  Outliers removed:  45
+  ─────────────────────────────────────────────────────
+  Final kept:        1243
+  Total dropped:     257
+  Drop rate:         17.1%
 
-Skip reasons:
+Parse skip reasons:
     200  city="Москва" (not Новосибирск)
-     57  unknown district: "пригород"
+
+Outlier drop reasons:
+     30  outlier: pricePerM2 > 1000000
+     15  outlier: areaM2 <= 5
 ```
 
 ### Шаг 3: Запуск с реальными данными
@@ -146,6 +160,21 @@ curl "http://127.0.0.1:4000/v1/areas/centralny/snapshot?rooms=2&minArea=40&maxAr
 
 # Цена от 3 млн до 7 млн ₽
 curl "http://127.0.0.1:4000/v1/areas/centralny/snapshot?minPrice=3000000&maxPrice=7000000"
+
+# Только частные продавцы
+curl "http://127.0.0.1:4000/v1/areas/centralny/snapshot?userType=private"
+
+# Только агентства
+curl "http://127.0.0.1:4000/v1/areas/centralny/snapshot?userType=agency"
+
+# Комбинация фильтров: 2-комнатные от частников
+curl "http://127.0.0.1:4000/v1/areas/centralny/snapshot?rooms=2&userType=private"
+```
+
+### Статус набора данных (curl)
+
+```bash
+curl http://127.0.0.1:4000/api/dataset/status
 ```
 
 ### Snapshot с фильтрами (PowerShell)

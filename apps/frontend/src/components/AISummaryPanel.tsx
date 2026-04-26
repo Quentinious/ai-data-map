@@ -64,10 +64,17 @@ export function AISummaryPanel({ districtId }: AISummaryPanelProps) {
       {data && (
         <>
           <ul className="metrics-list ai-summary-list">
-            {data.summary.map((point, index) => (
+            {data.summaryPoints.map((point, index) => (
               <li key={`${index}-${point}`}>{point}</li>
             ))}
           </ul>
+          {data.warnings.length > 0 && (
+            <ul className="ai-summary-warnings">
+              {data.warnings.map((warning, index) => (
+                <li key={`warning-${index}`} className="ai-summary-warning">{warning}</li>
+              ))}
+            </ul>
+          )}
           <p className="asof-line">
             Район: {data.district.name} · набор данных: {data.dataset.mode}
           </p>

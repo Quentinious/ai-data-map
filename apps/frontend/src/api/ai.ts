@@ -9,13 +9,15 @@ export type AICountrySummaryResponse = {
 };
 
 export type AIAreaSummaryResponse = {
-  summary: string[];
+  summaryPoints: string[];
+  warnings: string[];
   district: {
     id: string;
     name: string;
   };
   dataset: {
     mode: string;
+    updatedAt: string;
   };
 };
 
@@ -68,7 +70,7 @@ export async function generateAreaSummary(districtId: string): Promise<AIAreaSum
     throw new Error(message);
   }
 
-  if (!("summary" in payload) || !Array.isArray((payload as AIAreaSummaryResponse).summary)) {
+  if (!("summaryPoints" in payload) || !Array.isArray((payload as AIAreaSummaryResponse).summaryPoints)) {
     throw new Error("Invalid AI area summary response format");
   }
 

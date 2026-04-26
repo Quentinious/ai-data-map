@@ -3,7 +3,7 @@ import aiRouter from "./ai.js";
 import { buildCountrySnapshot } from "./buildCountrySnapshot.js";
 import { validateCountryCode } from "../../middleware/validateCountryCode.js";
 import { buildAreaSnapshot } from "../../services/buildAreaSnapshot.js";
-import type { SnapshotFilters } from "../../dto/areaSnapshot.js";
+import type { SnapshotFilters, UserType } from "../../dto/areaSnapshot.js";
 
 const router = Router();
 
@@ -56,7 +56,21 @@ router.get("/areas/:districtId/snapshot", async (req: Request, res: Response) =>
     return;
   }
 
-  const { rooms: roomsRaw, minArea: minAreaRaw, maxArea: maxAreaRaw, minPrice: minPriceRaw, maxPrice: maxPriceRaw } = req.query;
+  const { rooms: roomsRaw, minArea: minAreaRaw, maxArea: maxAreaRaw, minPrice: minPriceRaw, maxPrice: maxPriceRaw, userType: userTypeRaw } = req.query;
+
+  // Validate userType
+  const VALID_USER_TYPES: UserType[] = ["any", "private", "agency"];
+  let userType: UserType | undefined;
+  if (userTypeRaw !== undefined) {
+    const v = String(userTypeRaw).toLowerCase();
+    if (!VALID_USER_TYPES.includes(v as UserType)) {
+      res.status(400).json({
+        error: { code: "VALIDATION_ERROR", message: `userType must be one of: ${VALID_USER_TYPES.join(", ")}` }
+      });
+      return;
+    }
+    userType = v as UserType;
+  }
 
   // Validate rooms
   let rooms: number | undefined;
@@ -117,6 +131,7 @@ router.get("/areas/:districtId/snapshot", async (req: Request, res: Response) =>
   if (maxArea !== undefined) filters.maxArea = maxArea;
   if (minPrice !== undefined) filters.minPrice = minPrice;
   if (maxPrice !== undefined) filters.maxPrice = maxPrice;
+  if (userType !== undefined) filters.userType = userType;
 
   try {
     const snapshot = await buildAreaSnapshot(districtId, filters);

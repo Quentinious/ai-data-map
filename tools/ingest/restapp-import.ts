@@ -21,6 +21,16 @@ import process from "node:process";
 import * as XLSX from "@e965/xlsx";
 
 // ---------------------------------------------------------------------------
+// Configurable outlier thresholds
+// ---------------------------------------------------------------------------
+
+const OUTLIER_MIN_PRICE_RUB = 1; // priceRub must be > 0
+const OUTLIER_MIN_AREA_M2 = 5;
+const OUTLIER_MAX_AREA_M2 = 500;
+const OUTLIER_MIN_PRICE_PER_M2 = 10_000;
+const OUTLIER_MAX_PRICE_PER_M2 = 1_000_000;
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -50,6 +60,9 @@ type Listing = {
 type ListingsFile = {
   updatedAt: string;
   source: "avito_restapp";
+  totalInputRows: number;
+  dedupedListings: number;
+  droppedListings: number;
   listings: Listing[];
 };
 
@@ -448,32 +461,110 @@ async function main(): Promise<void> {
 
   console.log(`\nRead ${rows.length} data rows`);
 
-  // Convert rows to listings
-  let kept = 0;
-  let skipped = 0;
-  const listings: Listing[] = [];
-
-  const skipReasons: Record<string, number> = {};
+  // -------------------------------------------------------------------------
+  // Phase 1: Convert rows to listings (parse + basic validation)
+  // -------------------------------------------------------------------------
+  const parseSkipReasons: Record<string, number> = {};
+  const rawListings: Listing[] = [];
 
   for (let i = 0; i < rows.length; i++) {
     const result = rowToListing(rows[i] as RawRow, i);
     if (result.ok) {
-      listings.push(result.listing);
-      kept++;
+      rawListings.push(result.listing);
     } else {
-      skipped++;
       const key = result.reason.split(":")[0] ?? result.reason;
-      skipReasons[key] = (skipReasons[key] ?? 0) + 1;
+      parseSkipReasons[key] = (parseSkipReasons[key] ?? 0) + 1;
     }
   }
 
-  console.log(`\nResults:`);
-  console.log(`  Kept:    ${kept}`);
-  console.log(`  Skipped: ${skipped}`);
+  const parsedCount = rawListings.length;
+  const parseDropped = rows.length - parsedCount;
 
-  if (Object.keys(skipReasons).length > 0) {
-    console.log(`\nSkip reasons:`);
-    for (const [reason, count] of Object.entries(skipReasons).sort((a, b) => b[1] - a[1])) {
+  // -------------------------------------------------------------------------
+  // Phase 2: Deduplication — by url first, then by id
+  // -------------------------------------------------------------------------
+  const seenUrls = new Set<string>();
+  const seenIds = new Set<string>();
+  const afterDedup: Listing[] = [];
+
+  for (const listing of rawListings) {
+    if (listing.url && seenUrls.has(listing.url)) {
+      continue;
+    }
+    if (seenIds.has(listing.id)) {
+      continue;
+    }
+    if (listing.url) seenUrls.add(listing.url);
+    seenIds.add(listing.id);
+    afterDedup.push(listing);
+  }
+
+  const dedupDropped = parsedCount - afterDedup.length;
+
+  // -------------------------------------------------------------------------
+  // Phase 3: Outlier filtering
+  // -------------------------------------------------------------------------
+  const outlierReasons: Record<string, number> = {};
+  const listings: Listing[] = [];
+
+  for (const listing of afterDedup) {
+    if (listing.priceRub <= OUTLIER_MIN_PRICE_RUB) {
+      outlierReasons["outlier: priceRub <= 0"] = (outlierReasons["outlier: priceRub <= 0"] ?? 0) + 1;
+      continue;
+    }
+    if (listing.areaM2 <= OUTLIER_MIN_AREA_M2) {
+      outlierReasons[`outlier: areaM2 <= ${OUTLIER_MIN_AREA_M2}`] =
+        (outlierReasons[`outlier: areaM2 <= ${OUTLIER_MIN_AREA_M2}`] ?? 0) + 1;
+      continue;
+    }
+    if (listing.areaM2 > OUTLIER_MAX_AREA_M2) {
+      outlierReasons[`outlier: areaM2 > ${OUTLIER_MAX_AREA_M2}`] =
+        (outlierReasons[`outlier: areaM2 > ${OUTLIER_MAX_AREA_M2}`] ?? 0) + 1;
+      continue;
+    }
+    const pricePerM2 = listing.priceRub / listing.areaM2;
+    if (pricePerM2 <= OUTLIER_MIN_PRICE_PER_M2) {
+      outlierReasons[`outlier: pricePerM2 <= ${OUTLIER_MIN_PRICE_PER_M2}`] =
+        (outlierReasons[`outlier: pricePerM2 <= ${OUTLIER_MIN_PRICE_PER_M2}`] ?? 0) + 1;
+      continue;
+    }
+    if (pricePerM2 > OUTLIER_MAX_PRICE_PER_M2) {
+      outlierReasons[`outlier: pricePerM2 > ${OUTLIER_MAX_PRICE_PER_M2}`] =
+        (outlierReasons[`outlier: pricePerM2 > ${OUTLIER_MAX_PRICE_PER_M2}`] ?? 0) + 1;
+      continue;
+    }
+    listings.push(listing);
+  }
+
+  const outlierDropped = afterDedup.length - listings.length;
+  const totalDropped = parseDropped + dedupDropped + outlierDropped;
+
+  // -------------------------------------------------------------------------
+  // Import report
+  // -------------------------------------------------------------------------
+  console.log(`\n── Import Report ──────────────────────────────────────`);
+  console.log(`  Input rows:        ${rows.length}`);
+  console.log(`  Parse failures:    ${parseDropped}`);
+  console.log(`  Dedup removed:     ${dedupDropped}`);
+  console.log(`  Outliers removed:  ${outlierDropped}`);
+  console.log(`  ─────────────────────────────────────────────────────`);
+  console.log(`  Final kept:        ${listings.length}`);
+  console.log(`  Total dropped:     ${totalDropped}`);
+  if (rows.length > 0) {
+    const pct = ((totalDropped / rows.length) * 100).toFixed(1);
+    console.log(`  Drop rate:         ${pct}%`);
+  }
+
+  if (Object.keys(parseSkipReasons).length > 0) {
+    console.log(`\nParse skip reasons:`);
+    for (const [reason, count] of Object.entries(parseSkipReasons).sort((a, b) => b[1] - a[1])) {
+      console.log(`  ${count.toString().padStart(5)}  ${reason}`);
+    }
+  }
+
+  if (Object.keys(outlierReasons).length > 0) {
+    console.log(`\nOutlier drop reasons:`);
+    for (const [reason, count] of Object.entries(outlierReasons).sort((a, b) => b[1] - a[1])) {
       console.log(`  ${count.toString().padStart(5)}  ${reason}`);
     }
   }
@@ -485,6 +576,9 @@ async function main(): Promise<void> {
   const output: ListingsFile = {
     updatedAt: new Date().toISOString(),
     source: "avito_restapp",
+    totalInputRows: rows.length,
+    dedupedListings: dedupDropped,
+    droppedListings: totalDropped,
     listings,
   };
 

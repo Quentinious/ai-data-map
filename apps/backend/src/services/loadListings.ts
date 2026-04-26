@@ -9,10 +9,21 @@ const defaultListingsPath = path.resolve(__dirname, "../../data/listings.sample.
 
 export type ListingsFile =
   | Listing[]
-  | { updatedAt: string; source?: string; listings: Listing[] };
+  | {
+      updatedAt: string;
+      source?: string;
+      totalInputRows?: number;
+      dedupedListings?: number;
+      droppedListings?: number;
+      listings: Listing[];
+    };
 
 let listingsCache: Listing[] | null = null;
 let listingsUpdatedAt: string | null = null;
+let listingsSource: string | null = null;
+let listingsTotalInputRows: number | null = null;
+let listingsDedupedListings: number | null = null;
+let listingsDroppedListings: number | null = null;
 
 function resolveListingsPath(): string {
   const envPath = process.env["LISTINGS_DATA_PATH"];
@@ -30,6 +41,34 @@ export function getDatasetMode(): "sample" | "real" {
   return process.env["LISTINGS_DATA_PATH"] ? "real" : "sample";
 }
 
+export type DatasetStatus = {
+  mode: "sample" | "real";
+  source: string;
+  updatedAt: string;
+  totalListings: number;
+  dedupedListings: number | null;
+  droppedListings: number | null;
+  warnings: string[];
+};
+
+export async function getDatasetStatus(): Promise<DatasetStatus> {
+  const listings = await loadListings();
+  const mode = getDatasetMode();
+  const warnings: string[] = [];
+  if (mode === "sample") {
+    warnings.push("sample dataset");
+  }
+  return {
+    mode,
+    source: listingsSource ?? (mode === "sample" ? "sample" : "avito_restapp"),
+    updatedAt: getListingsUpdatedAt(),
+    totalListings: listings.length,
+    dedupedListings: listingsDedupedListings,
+    droppedListings: listingsDroppedListings,
+    warnings,
+  };
+}
+
 export async function loadListings(): Promise<Listing[]> {
   if (listingsCache) {
     return listingsCache;
@@ -42,9 +81,17 @@ export async function loadListings(): Promise<Listing[]> {
   if (Array.isArray(parsed)) {
     listingsCache = parsed;
     listingsUpdatedAt = null;
+    listingsSource = null;
+    listingsTotalInputRows = null;
+    listingsDedupedListings = null;
+    listingsDroppedListings = null;
   } else {
     listingsCache = parsed.listings;
     listingsUpdatedAt = parsed.updatedAt;
+    listingsSource = parsed.source ?? null;
+    listingsTotalInputRows = parsed.totalInputRows ?? null;
+    listingsDedupedListings = parsed.dedupedListings ?? null;
+    listingsDroppedListings = parsed.droppedListings ?? null;
   }
 
   return listingsCache;
@@ -57,6 +104,7 @@ export type ListingsFilter = {
   maxArea?: number;
   minPrice?: number;
   maxPrice?: number;
+  userType?: "any" | "private" | "agency";
 };
 
 export async function getFilteredListings(filter: ListingsFilter): Promise<Listing[]> {
@@ -85,6 +133,21 @@ export async function getFilteredListings(filter: ListingsFilter): Promise<Listi
 
     if (filter.maxPrice !== undefined && listing.priceRub > filter.maxPrice) {
       return false;
+    }
+
+    if (filter.userType !== undefined && filter.userType !== "any") {
+      const rawUserType = (listing.userType ?? "").toLowerCase();
+      if (filter.userType === "private") {
+        // Keep listings where userType is empty/unknown or contains "частн" / "физ"
+        if (rawUserType && !rawUserType.includes("частн") && !rawUserType.includes("физ")) {
+          return false;
+        }
+      } else if (filter.userType === "agency") {
+        // Keep listings where userType contains "агент" / "юр"
+        if (!rawUserType.includes("агент") && !rawUserType.includes("юр")) {
+          return false;
+        }
+      }
     }
 
     return true;

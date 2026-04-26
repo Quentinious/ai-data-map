@@ -7,7 +7,7 @@ import { z } from "zod";
 import type { ApiError, Country } from "./types.js";
 import v1Router from "./routes/v1/index.js";
 import { loadDistricts } from "./services/loadDistricts.js";
-import { getFilteredListings } from "./services/loadListings.js";
+import { getDatasetStatus, getFilteredListings } from "./services/loadListings.js";
 
 console.log("BOOT: active backend entrypoint: apps/backend/src/index.ts");
 
@@ -109,6 +109,16 @@ app.get("/api/areas", async (_req, res, next) => {
   try {
     const districts = await loadDistricts();
     res.json({ data: districts });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/dataset/status - returns dataset metadata and quality info
+app.get("/api/dataset/status", async (_req, res, next) => {
+  try {
+    const status = await getDatasetStatus();
+    res.json({ data: status });
   } catch (error) {
     next(error);
   }

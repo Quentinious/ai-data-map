@@ -20,12 +20,15 @@ export type ListingWithPricePerM2 = {
   pricePerM2: number;
 };
 
+export type UserType = "any" | "private" | "agency";
+
 export type SnapshotFilters = {
   rooms?: number;
   minArea?: number;
   maxArea?: number;
   minPrice?: number;
   maxPrice?: number;
+  userType?: UserType;
 };
 
 export type AreaSnapshot = {
@@ -41,6 +44,21 @@ export type AreaSnapshot = {
   filtersApplied: SnapshotFilters;
   counts: {
     totalListings: number;
+    byRooms: {
+      1: number;
+      2: number;
+      3: number;
+      4: number;
+    };
+  };
+  listingCountBeforeFilters: number;
+  listingCountAfterFilters: number;
+  composition: {
+    byUserType: {
+      private: number;
+      agency: number;
+      unknown: number;
+    };
     byRooms: {
       1: number;
       2: number;

@@ -51,7 +51,7 @@ function buildMockAreaSummary(snapshot: AreaSnapshot): AreaSummaryResult {
     .join(", ");
 
   const summaryPoints: string[] = [
-    `Район «${district.name}»: анализ основан на ${counts.totalListings} объявлениях.`,
+    `Район «${district.name}»: анализ основан на ${counts.totalListings} объявлениях (набор данных: ${snapshot.dataset.mode}).`,
     `Медианная цена — ${formatPrice(priceRub.median)}, диапазон P25–P75: ${formatPrice(priceRub.p25)} – ${formatPrice(priceRub.p75)}.`,
     `Медианная цена за м² — ${pricePerM2Rub.median.toLocaleString("ru-RU")} ₽/м², диапазон P25–P75: ${pricePerM2Rub.p25.toLocaleString("ru-RU")} – ${pricePerM2Rub.p75.toLocaleString("ru-RU")} ₽/м².`,
     `Медианная площадь квартиры — ${areaM2.median} м² (P25: ${areaM2.p25} м², P75: ${areaM2.p75} м²).`,

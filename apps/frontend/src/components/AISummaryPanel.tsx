@@ -70,8 +70,8 @@ export function AISummaryPanel({ districtId }: AISummaryPanelProps) {
           </ul>
           {data.warnings.length > 0 && (
             <ul className="ai-summary-warnings">
-              {data.warnings.map((warning, index) => (
-                <li key={`warning-${index}`} className="ai-summary-warning">{warning}</li>
+              {data.warnings.map((warning) => (
+                <li key={warning} className="ai-summary-warning">{warning}</li>
               ))}
             </ul>
           )}

@@ -5,6 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "echo \"tools: no build step\"",
     "ingest": "tsx ingest/restapp-import.ts",
     "typecheck": "tsc --noEmit"
   },

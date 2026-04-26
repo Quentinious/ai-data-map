@@ -138,12 +138,13 @@ export async function getFilteredListings(filter: ListingsFilter): Promise<Listi
     if (filter.userType !== undefined && filter.userType !== "any") {
       const rawUserType = (listing.userType ?? "").toLowerCase();
       if (filter.userType === "private") {
-        // Keep listings where userType is empty/unknown or contains "частн" / "физ"
-        if (rawUserType && !rawUserType.includes("частн") && !rawUserType.includes("физ")) {
+        // Private: keep listings explicitly marked as private ("частн", "физ").
+        // Listings with unknown/empty userType are excluded to avoid showing agency listings.
+        if (!rawUserType.includes("частн") && !rawUserType.includes("физ")) {
           return false;
         }
       } else if (filter.userType === "agency") {
-        // Keep listings where userType contains "агент" / "юр"
+        // Agency: keep only listings explicitly marked as agency ("агент", "юр").
         if (!rawUserType.includes("агент") && !rawUserType.includes("юр")) {
           return false;
         }

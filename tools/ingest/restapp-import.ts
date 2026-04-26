@@ -509,7 +509,8 @@ async function main(): Promise<void> {
 
   for (const listing of afterDedup) {
     if (listing.priceRub <= OUTLIER_MIN_PRICE_RUB) {
-      outlierReasons["outlier: priceRub <= 0"] = (outlierReasons["outlier: priceRub <= 0"] ?? 0) + 1;
+      outlierReasons[`outlier: priceRub <= ${OUTLIER_MIN_PRICE_RUB}`] =
+        (outlierReasons[`outlier: priceRub <= ${OUTLIER_MIN_PRICE_RUB}`] ?? 0) + 1;
       continue;
     }
     if (listing.areaM2 <= OUTLIER_MIN_AREA_M2) {

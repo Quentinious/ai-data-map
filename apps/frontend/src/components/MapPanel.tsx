@@ -1,13 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CircleMarker, MapContainer, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
-import { fetchDistrictMapData } from "../api/map";
+import { fetchDistrictMapData, fetchListingPoints } from "../api/map";
 import { districtCentroidsNsk } from "../data/districtCentroids.nsk";
 import type { SnapshotFilters } from "../types/areaSnapshot";
-import type { MapDistrictItem, MapDistrictsResponse } from "../types/map";
+import type { MapDistrictItem, MapDistrictsResponse, MapListingPoint, MapListingsResponse } from "../types/map";
 
 const NOVOSIBIRSK_CENTER: [number, number] = [55.0302, 82.9204];
 const NOVOSIBIRSK_ZOOM = 11;
 const LEGEND_COLORS = ["#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa", "#2563eb", "#1d4ed8"];
+const LISTING_POINT_COLOR = "#f97316";
+const DEBOUNCE_MS = 300;
 
 type MapPanelProps = {
   selectedDistrictId: string;
@@ -143,6 +145,33 @@ function MapMarkerContent({ district }: { district: MapDistrictItem }) {
   );
 }
 
+function formatSourceLabel(source: string): string {
+  if (source === "sample") return "DEMO";
+  if (source === "avito_restapp") return "Авито";
+  return source;
+}
+
+function ListingMarkerContent({ listing }: { listing: MapListingPoint }) {
+  return (
+    <>
+      <strong>
+        {listing.rooms}-комн., {listing.areaM2} м²
+      </strong>
+      <br />
+      Цена: {listing.priceRub.toLocaleString("ru-RU")} ₽<br />
+      ₽/м²: {listing.pricePerM2.toLocaleString("ru-RU")}
+      {listing.userType && (
+        <>
+          <br />
+          Продавец: {listing.userType}
+        </>
+      )}
+      <br />
+      Источник: {formatSourceLabel(listing.source)}
+    </>
+  );
+}
+
 function SelectedDistrictFlyTo({ districts, selectedDistrictId }: { districts: MapDistrictItem[]; selectedDistrictId: string }) {
   const map = useMap();
 
@@ -189,7 +218,13 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const loadMapData = () => {
+  const [showListings, setShowListings] = useState(false);
+  const [listingData, setListingData] = useState<MapListingsResponse | null>(null);
+  const [listingLoading, setListingLoading] = useState(false);
+  const [listingError, setListingError] = useState("");
+  const listingAbortRef = useRef<AbortController | null>(null);
+
+  const loadMapData = useCallback(() => {
     setLoading(true);
     setError("");
 
@@ -202,14 +237,59 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
       .finally(() => {
         setLoading(false);
       });
-  };
+  }, [filters]);
 
   useEffect(() => {
     loadMapData();
-  }, [filters]);
+  }, [loadMapData]);
+
+  // Debounced fetch for listing points with in-flight cancellation
+  useEffect(() => {
+    if (!showListings || !selectedDistrictId) {
+      setListingData(null);
+      setListingError("");
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      listingAbortRef.current?.abort();
+      const controller = new AbortController();
+      listingAbortRef.current = controller;
+
+      setListingLoading(true);
+      setListingError("");
+
+      fetchListingPoints(selectedDistrictId, filters, controller.signal)
+        .then(setListingData)
+        .catch((err: unknown) => {
+          if (err instanceof Error && err.name === "AbortError") return;
+          setListingData(null);
+          setListingError(
+            err instanceof Error ? err.message : "Не удалось загрузить объявления"
+          );
+        })
+        .finally(() => {
+          setListingLoading(false);
+        });
+    }, DEBOUNCE_MS);
+
+    return () => {
+      clearTimeout(timer);
+      listingAbortRef.current?.abort();
+    };
+  }, [showListings, selectedDistrictId, filters]);
 
   const districts = data?.districts ?? [];
   const legendBands = useMemo(() => buildLegendBands(districts), [districts]);
+  const listingPoints = listingData?.listings ?? [];
+
+  const allWarnings = useMemo(() => {
+    const w: string[] = [...(data?.warnings ?? [])];
+    if (showListings && listingData) {
+      w.push(...listingData.warnings);
+    }
+    return w;
+  }, [data?.warnings, showListings, listingData]);
 
   return (
     <section className="map-panel">
@@ -219,16 +299,28 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
           <p>Leaflet + OpenStreetMap без ключей. Цвет маркера показывает медиану ₽/м² по району.</p>
         </div>
 
-        {data && (
-          <div
-            className={`map-dataset-badge ${
-              data.dataset.mode === "sample" ? "map-dataset-badge--demo" : "map-dataset-badge--real"
-            }`}
-            title={`Updated: ${formatUpdatedAtLocal(data.dataset.updatedAt)}`}
-          >
-            <span>{formatDatasetLabel(data.dataset.mode)}</span>
-          </div>
-        )}
+        <div className="map-panel-controls">
+          {data && (
+            <div
+              className={`map-dataset-badge ${
+                data.dataset.mode === "sample" ? "map-dataset-badge--demo" : "map-dataset-badge--real"
+              }`}
+              title={`Updated: ${formatUpdatedAtLocal(data.dataset.updatedAt)}`}
+            >
+              <span>{formatDatasetLabel(data.dataset.mode)}</span>
+            </div>
+          )}
+
+          <label className="map-toggle-label">
+            <input
+              type="checkbox"
+              className="map-toggle-checkbox"
+              checked={showListings}
+              onChange={(e) => setShowListings(e.target.checked)}
+            />
+            <span>Показать объявления</span>
+          </label>
+        </div>
       </div>
 
       {error && (
@@ -240,8 +332,24 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
         </div>
       )}
 
+      {listingError && (
+        <div className="snapshot-error-block">
+          <p className="error">{listingError}</p>
+        </div>
+      )}
+
+      {showListings && !selectedDistrictId && (
+        <p className="map-listing-hint" role="status" aria-live="polite">
+          Выберите район на карте или в списке, чтобы увидеть объявления.
+        </p>
+      )}
+
       <div className="map-shell">
-        {loading && <div className="map-overlay">Загрузка карты районов…</div>}
+        {(loading || listingLoading) && (
+          <div className="map-overlay">
+            {loading ? "Загрузка карты районов…" : "Загрузка объявлений…"}
+          </div>
+        )}
 
         <MapContainer center={NOVOSIBIRSK_CENTER} zoom={NOVOSIBIRSK_ZOOM} scrollWheelZoom className="map-canvas">
           <FitBoundsOnLoad districts={districts} />
@@ -283,6 +391,25 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
               </CircleMarker>
             );
           })}
+
+          {showListings &&
+            listingPoints.map((listing) => (
+              <CircleMarker
+                key={listing.id}
+                center={[listing.lat, listing.lng]}
+                radius={5}
+                pathOptions={{
+                  color: LISTING_POINT_COLOR,
+                  fillColor: LISTING_POINT_COLOR,
+                  fillOpacity: 0.75,
+                  weight: 1,
+                }}
+              >
+                <Popup>
+                  <ListingMarkerContent listing={listing} />
+                </Popup>
+              </CircleMarker>
+            ))}
         </MapContainer>
 
         <div className="map-legend" aria-label="Легенда карты">
@@ -295,16 +422,22 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
               </li>
             ))}
           </ul>
+          {showListings && listingPoints.length > 0 && (
+            <div className="map-legend-listing-row">
+              <span className="map-legend-swatch" style={{ backgroundColor: LISTING_POINT_COLOR }} />
+              <span>Объявления ({listingPoints.length})</span>
+            </div>
+          )}
         </div>
       </div>
 
-      {data?.warnings.length ? (
+      {allWarnings.length > 0 && (
         <div className="warnings-block map-warnings">
-          {data.warnings.map((warning) => (
+          {allWarnings.map((warning) => (
             <p key={warning}>{warning}</p>
           ))}
         </div>
-      ) : null}
+      )}
 
       {districts.length > 0 && (
         <p className="map-caption">

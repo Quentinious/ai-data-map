@@ -5,6 +5,7 @@ import { AISummaryPanel } from "./components/AISummaryPanel";
 import { AreaCard } from "./components/AreaCard";
 import { FiltersPanel } from "./components/FiltersPanel";
 import { ComparePanel } from "./components/ComparePanel";
+import { MapPanel } from "./components/MapPanel";
 import type { AreaSnapshot, District, SnapshotFilters } from "./types/areaSnapshot";
 
 export default function App() {
@@ -115,9 +116,9 @@ export default function App() {
           <AISummaryPanel districtId={selectedId || null} />
         </section>
 
-        <section className="map-placeholder" aria-label="map placeholder">
+        <section className="map-placeholder" aria-label="interactive map">
           <h2>Interactive Map</h2>
-          <p>Map integration is a Sprint 2 task. This area is reserved for the map canvas.</p>
+          <MapPanel selectedDistrictId={selectedId} filters={filters} onDistrictSelect={setSelectedId} />
         </section>
       </main>
 

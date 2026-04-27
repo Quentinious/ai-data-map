@@ -30,6 +30,10 @@ export function getDatasetMode(): "sample" | "real" {
   return process.env["LISTINGS_DATA_PATH"] ? "real" : "sample";
 }
 
+export function getListingsSource(): string {
+  return path.basename(resolveListingsPath());
+}
+
 export async function loadListings(): Promise<Listing[]> {
   if (listingsCache) {
     return listingsCache;
@@ -53,6 +57,7 @@ export async function loadListings(): Promise<Listing[]> {
 export type ListingsFilter = {
   districtId?: string;
   rooms?: number;
+  userType?: string;
   minArea?: number;
   maxArea?: number;
   minPrice?: number;
@@ -68,6 +73,10 @@ export async function getFilteredListings(filter: ListingsFilter): Promise<Listi
     }
 
     if (filter.rooms !== undefined && listing.rooms !== filter.rooms) {
+      return false;
+    }
+
+    if (filter.userType !== undefined && listing.userType !== filter.userType) {
       return false;
     }
 

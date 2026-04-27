@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import aiRouter from "./ai.js";
+import mapRouter from "./map.js";
 import { buildCountrySnapshot } from "./buildCountrySnapshot.js";
 import { validateCountryCode } from "../../middleware/validateCountryCode.js";
 import { buildAreaSnapshot } from "../../services/buildAreaSnapshot.js";
@@ -56,7 +57,14 @@ router.get("/areas/:districtId/snapshot", async (req: Request, res: Response) =>
     return;
   }
 
-  const { rooms: roomsRaw, minArea: minAreaRaw, maxArea: maxAreaRaw, minPrice: minPriceRaw, maxPrice: maxPriceRaw } = req.query;
+  const {
+    rooms: roomsRaw,
+    userType: userTypeRaw,
+    minArea: minAreaRaw,
+    maxArea: maxAreaRaw,
+    minPrice: minPriceRaw,
+    maxPrice: maxPriceRaw
+  } = req.query;
 
   // Validate rooms
   let rooms: number | undefined;
@@ -69,6 +77,19 @@ router.get("/areas/:districtId/snapshot", async (req: Request, res: Response) =>
       return;
     }
     rooms = n;
+  }
+
+  let userType: string | undefined;
+  if (userTypeRaw !== undefined) {
+    const normalizedUserType = String(userTypeRaw).trim();
+    if (!normalizedUserType) {
+      res.status(400).json({
+        error: { code: "VALIDATION_ERROR", message: "userType must be a non-empty string" }
+      });
+      return;
+    }
+
+    userType = normalizedUserType;
   }
 
   // Validate numeric range params
@@ -113,6 +134,7 @@ router.get("/areas/:districtId/snapshot", async (req: Request, res: Response) =>
 
   const filters: SnapshotFilters = {};
   if (rooms !== undefined) filters.rooms = rooms;
+  if (userType !== undefined) filters.userType = userType;
   if (minArea !== undefined) filters.minArea = minArea;
   if (maxArea !== undefined) filters.maxArea = maxArea;
   if (minPrice !== undefined) filters.minPrice = minPrice;
@@ -134,5 +156,6 @@ router.get("/areas/:districtId/snapshot", async (req: Request, res: Response) =>
 });
 
 router.use(aiRouter);
+router.use(mapRouter);
 
 export default router;

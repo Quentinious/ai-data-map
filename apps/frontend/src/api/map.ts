@@ -1,13 +1,15 @@
-import type { AreaSnapshot, SnapshotFilters } from "../types/areaSnapshot";
+import type { SnapshotFilters } from "../types/areaSnapshot";
+import type { MapDistrictsResponse } from "../types/map";
 
 const baseUrl = import.meta.env.VITE_BACKEND_BASE_URL ?? "http://127.0.0.1:4000";
 
-type AreaSnapshotResponse = {
-  data: AreaSnapshot;
+type MapDistrictsResponseBody = {
+  data: MapDistrictsResponse;
 };
 
-export async function fetchAreaSnapshot(districtId: string, filters?: SnapshotFilters): Promise<AreaSnapshot> {
+export async function fetchDistrictMapData(filters?: SnapshotFilters): Promise<MapDistrictsResponse> {
   const params = new URLSearchParams();
+
   if (filters?.rooms !== undefined) params.set("rooms", String(filters.rooms));
   if (filters?.userType !== undefined) params.set("userType", filters.userType);
   if (filters?.minArea !== undefined) params.set("minArea", String(filters.minArea));
@@ -16,17 +18,16 @@ export async function fetchAreaSnapshot(districtId: string, filters?: SnapshotFi
   if (filters?.maxPrice !== undefined) params.set("maxPrice", String(filters.maxPrice));
 
   const query = params.toString();
-  const url = `${baseUrl}/v1/areas/${encodeURIComponent(districtId)}/snapshot${query ? `?${query}` : ""}`;
-  const response = await fetch(url);
+  const response = await fetch(`${baseUrl}/v1/map/districts${query ? `?${query}` : ""}`);
 
   if (!response.ok) {
-    throw new Error(`Failed to load area snapshot (${response.status})`);
+    throw new Error(`Failed to load district map (${response.status})`);
   }
 
-  const payload = (await response.json()) as AreaSnapshotResponse;
+  const payload = (await response.json()) as MapDistrictsResponseBody;
 
   if (!payload?.data) {
-    throw new Error("Invalid area snapshot response format");
+    throw new Error("Invalid district map response format");
   }
 
   return payload.data;

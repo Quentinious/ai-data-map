@@ -22,6 +22,7 @@ export type ListingWithPricePerM2 = {
 
 export type SnapshotFilters = {
   rooms?: number;
+  userType?: string;
   minArea?: number;
   maxArea?: number;
   minPrice?: number;

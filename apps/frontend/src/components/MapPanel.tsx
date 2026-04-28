@@ -308,9 +308,11 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
   selectedDistrictIdRef.current = selectedDistrictId;
   onDistrictSelectRef.current = onDistrictSelect;
 
-  // Stable callback for GeoJSON layer — uses refs to avoid stale closures
-  const onEachFeature = useCallback((feature: DistrictGeoJSONFeature, layer: L.Layer) => {
-    const { districtId, districtName } = feature.properties;
+  // Stable callback for GeoJSON layer — uses refs to access latest state values
+  // without triggering GeoJSON layer re-renders (onEachFeature isn't updated by react-leaflet after mount)
+  const onEachFeature = useCallback((feature: Feature, layer: L.Layer) => {
+    const props = feature.properties as DistrictFeatureProperties;
+    const { districtId, districtName } = props;
 
     layer.on("mouseover", (e) => {
       (e.target as L.Path).setStyle({ weight: 3, fillOpacity: 0.6 });
@@ -341,10 +343,11 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
   }, []);
 
   // Style function — recreated when selectedDistrictId or legendBands change (react-leaflet calls setStyle)
-  const polygonStyle = (feature?: DistrictGeoJSONFeature): L.PathOptions => {
-    if (!feature) return { fillColor: "#94a3b8", fillOpacity: 0.28, color: "#334155", weight: 1.5 };
-    const dist = districts.find((d) => d.id === feature.properties.districtId);
-    const selected = feature.properties.districtId === selectedDistrictId;
+  const polygonStyle = (feature?: Feature): L.PathOptions => {
+    if (!feature?.properties) return { fillColor: "#94a3b8", fillOpacity: 0.28, color: "#334155", weight: 1.5 };
+    const { districtId } = feature.properties as DistrictFeatureProperties;
+    const dist = districts.find((d) => d.id === districtId);
+    const selected = districtId === selectedDistrictId;
     return getPolygonStyle(dist?.medianPricePerM2 ?? null, selected, legendBands);
   };
 
@@ -392,8 +395,8 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
           {geoData && (
             <GeoJSON
               data={geoData}
-              style={polygonStyle as (feature?: Feature) => L.PathOptions}
-              onEachFeature={onEachFeature as (feature: Feature, layer: L.Layer) => void}
+              style={polygonStyle}
+              onEachFeature={onEachFeature}
             />
           )}
 

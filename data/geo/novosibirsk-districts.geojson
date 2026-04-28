@@ -1,0 +1,345 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "districtName": "Центральный",
+        "districtId": "centralny"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              82.9,
+              55.02
+            ],
+            [
+              82.95,
+              55.02
+            ],
+            [
+              82.95,
+              55.06
+            ],
+            [
+              82.9,
+              55.06
+            ],
+            [
+              82.9,
+              55.02
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "districtName": "Железнодорожный",
+        "districtId": "zheleznodorozhny"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              82.85,
+              55.01
+            ],
+            [
+              82.9,
+              55.01
+            ],
+            [
+              82.9,
+              55.04
+            ],
+            [
+              82.85,
+              55.04
+            ],
+            [
+              82.85,
+              55.01
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "districtName": "Заельцовский",
+        "districtId": "zaeltsovsky"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              82.88,
+              55.06
+            ],
+            [
+              82.95,
+              55.06
+            ],
+            [
+              82.95,
+              55.11
+            ],
+            [
+              82.88,
+              55.11
+            ],
+            [
+              82.88,
+              55.06
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "districtName": "Калининский",
+        "districtId": "kalininsky"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              82.8,
+              55.04
+            ],
+            [
+              82.88,
+              55.04
+            ],
+            [
+              82.88,
+              55.09
+            ],
+            [
+              82.8,
+              55.09
+            ],
+            [
+              82.8,
+              55.04
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "districtName": "Ленинский",
+        "districtId": "leninsky"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              82.85,
+              54.95
+            ],
+            [
+              82.93,
+              54.95
+            ],
+            [
+              82.93,
+              55
+            ],
+            [
+              82.85,
+              55
+            ],
+            [
+              82.85,
+              54.95
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "districtName": "Кировский",
+        "districtId": "kirovsky"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              82.75,
+              54.95
+            ],
+            [
+              82.85,
+              54.95
+            ],
+            [
+              82.85,
+              55.01
+            ],
+            [
+              82.75,
+              55.01
+            ],
+            [
+              82.75,
+              54.95
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "districtName": "Октябрьский",
+        "districtId": "oktyabrsky"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              82.9,
+              54.89
+            ],
+            [
+              82.98,
+              54.89
+            ],
+            [
+              82.98,
+              54.96
+            ],
+            [
+              82.9,
+              54.96
+            ],
+            [
+              82.9,
+              54.89
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "districtName": "Советский",
+        "districtId": "sovetsky"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              82.96,
+              54.83
+            ],
+            [
+              83.06,
+              54.83
+            ],
+            [
+              83.06,
+              54.92
+            ],
+            [
+              82.96,
+              54.92
+            ],
+            [
+              82.96,
+              54.83
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "districtName": "Дзержинский",
+        "districtId": "dzerzhinsky"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              83,
+              54.93
+            ],
+            [
+              83.1,
+              54.93
+            ],
+            [
+              83.1,
+              55.01
+            ],
+            [
+              83,
+              55.01
+            ],
+            [
+              83,
+              54.93
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "districtName": "Первомайский",
+        "districtId": "pervomaysky"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              82.98,
+              55
+            ],
+            [
+              83.08,
+              55
+            ],
+            [
+              83.08,
+              55.07
+            ],
+            [
+              82.98,
+              55.07
+            ],
+            [
+              82.98,
+              55
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

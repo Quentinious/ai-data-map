@@ -1,0 +1,158 @@
+{
+  "displayFieldName": "District",
+  "fieldAliases": {
+    "OBJECTID": "OBJECTID",
+    "District": "District"
+  },
+  "geometryType": "esriGeometryPolygon",
+  "spatialReference": {
+    "wkid": 4326,
+    "latestWkid": 4326
+  },
+  "fields": [
+    { "name": "OBJECTID", "type": "esriFieldTypeOID", "alias": "OBJECTID" },
+    { "name": "District", "type": "esriFieldTypeString", "alias": "District", "length": 50 }
+  ],
+  "features": [
+    {
+      "attributes": { "OBJECTID": 1, "District": "Центральный" },
+      "geometry": {
+        "rings": [
+          [
+            [82.90, 55.02],
+            [82.95, 55.02],
+            [82.95, 55.06],
+            [82.90, 55.06],
+            [82.90, 55.02]
+          ]
+        ]
+      }
+    },
+    {
+      "attributes": { "OBJECTID": 2, "District": "Железнодорожный" },
+      "geometry": {
+        "rings": [
+          [
+            [82.85, 55.01],
+            [82.90, 55.01],
+            [82.90, 55.04],
+            [82.85, 55.04],
+            [82.85, 55.01]
+          ]
+        ]
+      }
+    },
+    {
+      "attributes": { "OBJECTID": 3, "District": "Заельцовский" },
+      "geometry": {
+        "rings": [
+          [
+            [82.88, 55.06],
+            [82.95, 55.06],
+            [82.95, 55.11],
+            [82.88, 55.11],
+            [82.88, 55.06]
+          ]
+        ]
+      }
+    },
+    {
+      "attributes": { "OBJECTID": 4, "District": "Калининский" },
+      "geometry": {
+        "rings": [
+          [
+            [82.80, 55.04],
+            [82.88, 55.04],
+            [82.88, 55.09],
+            [82.80, 55.09],
+            [82.80, 55.04]
+          ]
+        ]
+      }
+    },
+    {
+      "attributes": { "OBJECTID": 5, "District": "Ленинский" },
+      "geometry": {
+        "rings": [
+          [
+            [82.85, 54.95],
+            [82.93, 54.95],
+            [82.93, 55.00],
+            [82.85, 55.00],
+            [82.85, 54.95]
+          ]
+        ]
+      }
+    },
+    {
+      "attributes": { "OBJECTID": 6, "District": "Кировский" },
+      "geometry": {
+        "rings": [
+          [
+            [82.75, 54.95],
+            [82.85, 54.95],
+            [82.85, 55.01],
+            [82.75, 55.01],
+            [82.75, 54.95]
+          ]
+        ]
+      }
+    },
+    {
+      "attributes": { "OBJECTID": 7, "District": "Октябрьский" },
+      "geometry": {
+        "rings": [
+          [
+            [82.90, 54.89],
+            [82.98, 54.89],
+            [82.98, 54.96],
+            [82.90, 54.96],
+            [82.90, 54.89]
+          ]
+        ]
+      }
+    },
+    {
+      "attributes": { "OBJECTID": 8, "District": "Советский" },
+      "geometry": {
+        "rings": [
+          [
+            [82.96, 54.83],
+            [83.06, 54.83],
+            [83.06, 54.92],
+            [82.96, 54.92],
+            [82.96, 54.83]
+          ]
+        ]
+      }
+    },
+    {
+      "attributes": { "OBJECTID": 9, "District": "Дзержинский" },
+      "geometry": {
+        "rings": [
+          [
+            [83.00, 54.93],
+            [83.10, 54.93],
+            [83.10, 55.01],
+            [83.00, 55.01],
+            [83.00, 54.93]
+          ]
+        ]
+      }
+    },
+    {
+      "attributes": { "OBJECTID": 10, "District": "Первомайский" },
+      "geometry": {
+        "rings": [
+          [
+            [82.98, 55.00],
+            [83.08, 55.00],
+            [83.08, 55.07],
+            [82.98, 55.07],
+            [82.98, 55.00]
+          ]
+        ]
+      }
+    }
+  ]
+}

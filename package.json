@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "concurrently \"npm run dev -w apps/backend\" \"npm run dev -w apps/frontend\"",
     "build": "npm run build -ws",
-    "typecheck": "npm run typecheck -ws"
+    "typecheck": "npm run typecheck -ws",
+    "geo:convert-nsk-districts": "tsx tools/geo/arcgis-boundary-to-geojson.ts"
   },
   "keywords": [],
   "author": "",

@@ -20,3 +20,27 @@ export type MapDistrictsResponse = {
   districts: MapDistrictItem[];
   warnings: string[];
 };
+
+export type MapListingPoint = {
+  id: string;
+  lat: number;
+  lng: number;
+  priceRub: number;
+  areaM2: number;
+  pricePerM2: number;
+  rooms: 1 | 2 | 3 | 4;
+  userType?: string;
+  source: string;
+};
+
+export type MapListingsResponse = {
+  dataset: {
+    mode: "sample" | "real";
+    source: string;
+    updatedAt: string;
+  };
+  districtId: string;
+  listings: MapListingPoint[];
+  truncated: boolean;
+  warnings: string[];
+};

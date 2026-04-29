@@ -348,6 +348,11 @@ body {
   color: #0f172a;
 }
 
+/* Remove the browser focus rectangle that appears on selected Leaflet SVG paths */
+.leaflet-interactive:focus {
+  outline: none;
+}
+
 @media (max-width: 900px) {
   .layout {
     grid-template-columns: 1fr;

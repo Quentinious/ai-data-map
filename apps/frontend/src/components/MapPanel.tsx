@@ -415,9 +415,10 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
                 }}
                 pathOptions={{
                   color: selected ? "#0f172a" : "#334155",
+                  weight: selected ? 3 : 1.5,
+                  opacity: selected ? 1 : 0.7,
                   fillColor: color,
                   fillOpacity: selected ? 0.9 : 0.5,
-                  weight: selected ? 3 : 1.5,
                 }}
               >
                 <Tooltip direction="top" offset={[0, -8]} opacity={1} sticky>

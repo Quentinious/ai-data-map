@@ -141,10 +141,6 @@ export async function generateAreaSummary(
     }
   }
 
-  // Template (mock) summary — default when LLM is disabled or unavailable
-  if (shouldUseMock() || !isLLMEnabled()) {
-    return buildMockAreaSummary(snapshot);
-  }
-
-  throw createCodedError("AI_NOT_CONFIGURED", 503, "AI provider is not configured");
+  // Template (mock) summary — default when LLM is disabled or when LLM call failed
+  return buildMockAreaSummary(snapshot);
 }

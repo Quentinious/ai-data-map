@@ -105,7 +105,7 @@ router.get("/map/listings", async (req: Request, res: Response) => {
         case "pricePerM2":
           return a.pricePerM2 - b.pricePerM2;
         case "areaM2":
-          return b.areaM2 - a.areaM2; // largest first
+          return b.areaM2 - a.areaM2; // descending: largest area first
         case "publishedAt":
         default:
           return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();

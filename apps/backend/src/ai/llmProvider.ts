@@ -72,6 +72,6 @@ export async function callLLM(request: LLMRequest): Promise<LLMResponse> {
   //   return { text: completion.choices[0].message.content ?? "", finishReason: completion.choices[0].finish_reason };
 
   throw new Error(
-    `LLM provider "${provider}" is not yet implemented. Add the SDK call in apps/backend/src/ai/llmProvider.ts.`
+    `LLM provider "${provider}" is not yet implemented. Add the provider SDK call in the callLLM function.`
   );
 }

@@ -247,7 +247,7 @@ function FitBoundsOnLoad({
 }
 
 const SORT_LABELS: Record<TopListingsSort, string> = {
-  publishedAt: "Новее",
+  publishedAt: "Сначала новые",
   priceRub: "Цена ↑",
   pricePerM2: "₽/м² ↑",
   areaM2: "Площадь ↓",
@@ -485,7 +485,9 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
           <div className="top-listings-overlay" aria-label="Топ объявлений района">
             <div className="top-listings-header">
               <span className="top-listings-title">
-                Топ 5{selectedDistrictName ? ` · ${selectedDistrictName}` : ""}
+                {topListings.length > 0
+                  ? `Топ ${topListings.length}${selectedDistrictName ? ` · ${selectedDistrictName}` : ""}`
+                  : `Объявления${selectedDistrictName ? ` · ${selectedDistrictName}` : ""}`}
               </span>
               <select
                 className="top-listings-sort"

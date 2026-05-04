@@ -24,21 +24,73 @@ tools/
   - распределение по комнатности
   - топ-5 дешевейших и дорогих по ₽/м²
   - опциональные фильтры: `rooms`, `minArea`, `maxArea`, `minPrice`, `maxPrice`
-- `POST /v1/ai/area-summary` — AI-сводка по рынку района (mock-режим)
+- `GET /v1/map/districts` — данные choropleth-карты по районам (медиана ₽/м², кол-во объявлений)
+- `GET /v1/map/listings` — топ объявлений для выбранного района (см. ниже)
+- `POST /v1/ai/area-summary` — AI-сводка по рынку района (mock/template по умолчанию)
 - *(Legacy)* `GET /v1/countries/:code/snapshot` — snapshot страны (устарело)
 - *(Legacy)* `POST /v1/ai/country-summary` — AI-сводка страны (устарело)
 
 ### Frontend (`apps/frontend`)
 
-- Выпадающий список районов Новосибирска
+- Choropleth-карта районов (полигоны GeoJSON, цвет = медиана ₽/м²)
+- При выборе района — overlay «Топ 5 объявлений» с сортировкой и пронумерованными маркерами
 - Карточка аналитики района (AreaCard): цены, цена/м², площадь, топ-5 объявлений
 - Панель AI Summary с кнопкой генерации
 - Состояния loading / error + кнопка Retry
+
+## Топ объявлений района (GET /v1/map/listings)
+
+Endpoint возвращает до 5 объявлений для выбранного района с учётом текущих фильтров.
+
+### Query params
+
+| Параметр    | Обязательный | Описание |
+|-------------|--------------|----------|
+| `districtId`| ✅           | ID района (строчные, напр. `centralny`) |
+| `sort`      | нет          | Сортировка: `publishedAt` (новее, по умолч.) / `priceRub` / `pricePerM2` / `areaM2` |
+| `limit`     | нет          | 1–5, по умолчанию 5 |
+| `rooms`     | нет          | 1–4 |
+| `userType`  | нет          | тип продавца |
+| `minArea`, `maxArea`, `minPrice`, `maxPrice` | нет | диапазоны |
+
+### Пример запроса
+
+```bash
+curl "http://127.0.0.1:4000/v1/map/listings?districtId=centralny&sort=pricePerM2&limit=5"
+```
+
+### Пример ответа
+
+```json
+{
+  "data": {
+    "districtId": "centralny",
+    "sort": "pricePerM2",
+    "total": 22,
+    "listings": [
+      {
+        "id": "...",
+        "rooms": 2,
+        "areaM2": 54,
+        "priceRub": 4500000,
+        "pricePerM2": 83333,
+        "address": "ул. Ленина 1",
+        "metro": "Площадь Ленина",
+        "url": "https://..."
+      }
+    ],
+    "warnings": []
+  }
+}
+```
+
+Координаты (`lat`, `lon`) включаются только если они попадают в bbox Новосибирска (54.7–55.2° с.ш., 82.4–83.5° в.д.).
 
 ## Данные
 
 - `apps/backend/data/novosibirsk.districts.json` — 10 районов Новосибирска
 - `apps/backend/data/listings.sample.json` — ~220 синтетических объявлений
+- `apps/frontend/public/geo/novosibirsk-districts.geojson` — полигоны районов для карты
 
 > **Важно:** данные по умолчанию синтетические (sample), предназначены только для демонстрации.
 > Для подключения реальных данных используйте шаги ниже.
@@ -69,19 +121,6 @@ npx tsx tools/ingest/restapp-import.ts /path/to/export.xlsx /path/to/listings.re
 - Фильтрует только объявления из Новосибирска → Недвижимость → Квартиры
 - Нормализует район к ID из `novosibirsk.districts.json`
 - Выводит статистику по пропущенным строкам и причинам
-
-Пример вывода:
-```
-Read 1500 data rows
-
-Results:
-  Kept:    1243
-  Skipped: 257
-
-Skip reasons:
-    200  city="Москва" (not Новосибирск)
-     57  unknown district: "пригород"
-```
 
 ### Шаг 3: Запуск с реальными данными
 
@@ -121,8 +160,47 @@ Frontend: http://localhost:5173
 
 ## Переменные окружения
 
-- `apps/backend/.env.example` — настройки backend (AI_USE_MOCK, WB_BASE_URL, OPENWEATHER_API_KEY, **LISTINGS_DATA_PATH**…)
+- `apps/backend/.env.example` — настройки backend
 - `apps/frontend/.env.example` — `VITE_BACKEND_BASE_URL`
+
+## AI Summary
+
+По умолчанию AI Summary работает в **mock/template-режиме**: детерминированная сводка по данным без внешних вызовов.
+
+### Переменные окружения AI
+
+| Переменная      | По умолчанию | Описание |
+|-----------------|--------------|----------|
+| `AI_USE_MOCK`   | `true` (в dev) | `true` = всегда использовать template-сводку |
+| `AI_LLM_ENABLED`| `false`      | `true` = включить реальный LLM-провайдер |
+| `AI_PROVIDER`   | —            | Название провайдера (например, `openai`) |
+| `AI_API_KEY`    | —            | API-ключ провайдера |
+| `AI_MODEL`      | —            | Название модели (например, `gpt-4o-mini`) |
+| `AI_DEFAULT_LANGUAGE` | `ru`  | Язык сводки |
+
+### Включение реального LLM
+
+1. Установите `AI_LLM_ENABLED=true` в `apps/backend/.env`
+2. Заполните `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`
+3. Реализуйте SDK-вызов в `apps/backend/src/ai/llmProvider.ts` (файл содержит подробный комментарий с примером для OpenAI)
+
+При ошибке LLM сервис автоматически переключается на template-сводку (graceful fallback).
+
+### Пример включения (curl)
+
+```bash
+# apps/backend/.env
+AI_LLM_ENABLED=true
+AI_PROVIDER=openai
+AI_API_KEY=sk-...
+AI_MODEL=gpt-4o-mini
+```
+
+```bash
+curl -s -X POST http://127.0.0.1:4000/v1/ai/area-summary \
+  -H "Content-Type: application/json" \
+  -d '{"districtId":"centralny","language":"ru"}'
+```
 
 ## API Examples
 
@@ -148,20 +226,17 @@ curl "http://127.0.0.1:4000/v1/areas/centralny/snapshot?rooms=2&minArea=40&maxAr
 curl "http://127.0.0.1:4000/v1/areas/centralny/snapshot?minPrice=3000000&maxPrice=7000000"
 ```
 
-### Snapshot с фильтрами (PowerShell)
+### Топ объявлений района (curl)
 
-```powershell
-# 2-комнатные квартиры от 40 до 70 м²
-Invoke-RestMethod -Uri "http://127.0.0.1:4000/v1/areas/centralny/snapshot?rooms=2&minArea=40&maxArea=70"
+```bash
+# Топ 5 свежих объявлений
+curl "http://127.0.0.1:4000/v1/map/listings?districtId=centralny"
 
-# curl.exe (PowerShell-friendly, без кавычек-проблем)
-curl.exe -s "http://127.0.0.1:4000/v1/areas/centralny/snapshot?rooms=2&minArea=40&maxArea=70"
-```
+# Топ 5 дешевейших по ₽/м²
+curl "http://127.0.0.1:4000/v1/map/listings?districtId=centralny&sort=pricePerM2"
 
-### Snapshot района (PowerShell — без фильтров)
-
-```powershell
-Invoke-RestMethod -Uri "http://127.0.0.1:4000/v1/areas/centralny/snapshot"
+# Топ 5 с фильтром по комнатам
+curl "http://127.0.0.1:4000/v1/map/listings?districtId=centralny&sort=priceRub&rooms=2"
 ```
 
 ### AI Summary (curl)
@@ -179,21 +254,19 @@ $body = @{ districtId = "centralny"; language = "ru" } | ConvertTo-Json -Compres
 Invoke-RestMethod -Uri "http://127.0.0.1:4000/v1/ai/area-summary" -Method Post -ContentType "application/json" -Body $body
 ```
 
-```powershell
-# curl.exe с файлом тела (PowerShell-safe)
-'{"districtId":"centralny","language":"ru"}' | Set-Content -Path body.json -NoNewline
-curl.exe -s -X POST http://127.0.0.1:4000/v1/ai/area-summary -H "Content-Type: application/json" --data-binary @body.json
-```
-
 ### Фильтрация объявлений
 
 ```bash
 curl "http://127.0.0.1:4000/api/listings?districtId=centralny&rooms=2"
 ```
 
-## AI Mock Mode
+## Ручное тестирование UX
 
-По умолчанию `AI_USE_MOCK=true` — сервис генерирует детерминированную сводку без внешних вызовов.
-Для подключения реального провайдера установите `AI_USE_MOCK=false` и настройте `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL` в `apps/backend/.env`.
-
-```
+1. Запустите `npm run dev`
+2. Откройте http://localhost:5173
+3. **Карта без выбора района**: видны только полигоны районов (choropleth), никаких центроидных маркеров
+4. **Выбор района**: кликните на полигон или выберите из списка → полигон подсвечивается, карта летит к нему
+5. **Overlay «Топ 5»**: появляется в левом нижнем углу карты с первыми 5 объявлениями; используйте dropdown для смены сортировки
+6. **Маркеры на карте**: пронумерованные синие кружки (1–5) на позициях объявлений, кликните → popup с деталями
+7. **Popup объявления**: содержит цену, площадь, ₽/м², адрес, метро, тип продавца и ссылку
+8. **AI Summary**: нажмите «Generate summary» → template-сводка появится в левой панели

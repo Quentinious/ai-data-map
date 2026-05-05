@@ -20,3 +20,29 @@ export type MapDistrictsResponse = {
   districts: MapDistrictItem[];
   warnings: string[];
 };
+
+export type TopListingsSort = "publishedAt" | "priceRub" | "pricePerM2" | "areaM2";
+
+export type TopListingItem = {
+  id: string;
+  districtId: string;
+  url: string;
+  address: string;
+  rooms: 1 | 2 | 3 | 4;
+  areaM2: number;
+  priceRub: number;
+  pricePerM2: number;
+  publishedAt: string;
+  metro?: string;
+  userType?: string;
+  lat?: number;
+  lon?: number;
+};
+
+export type DistrictTopListingsResponse = {
+  districtId: string;
+  sort: TopListingsSort;
+  total: number;
+  listings: TopListingItem[];
+  warnings: string[];
+};

@@ -262,6 +262,7 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
   // Top listings state
   const [topListings, setTopListings] = useState<TopListingItem[]>([]);
   const [topListingsSort, setTopListingsSort] = useState<TopListingsSort>("publishedAt");
+  const [topListingsLoading, setTopListingsLoading] = useState(false);
   const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
   const topListingsAbortRef = useRef<AbortController | null>(null);
 
@@ -305,12 +306,14 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
 
     if (!selectedDistrictId) {
       setTopListings([]);
+      setTopListingsLoading(false);
       setSelectedListingId(null);
       return;
     }
 
     const controller = new AbortController();
     topListingsAbortRef.current = controller;
+    setTopListingsLoading(true);
 
     fetchDistrictTopListings(selectedDistrictId, topListingsSort, filters, controller.signal)
       .then((result) => {
@@ -323,6 +326,11 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
         if (!controller.signal.aborted) {
           console.warn("Failed to load top listings:", err);
           setTopListings([]);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setTopListingsLoading(false);
         }
       });
 
@@ -485,9 +493,11 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
           <div className="top-listings-overlay" aria-label="Топ объявлений района">
             <div className="top-listings-header">
               <span className="top-listings-title">
-                {topListings.length > 0
-                  ? `Топ ${topListings.length}${selectedDistrictName ? ` · ${selectedDistrictName}` : ""}`
-                  : `Объявления${selectedDistrictName ? ` · ${selectedDistrictName}` : ""}`}
+                {topListingsLoading
+                  ? `Объявления${selectedDistrictName ? ` · ${selectedDistrictName}` : ""}`
+                  : topListings.length > 0
+                    ? `Топ ${topListings.length}${selectedDistrictName ? ` · ${selectedDistrictName}` : ""}`
+                    : `Объявления${selectedDistrictName ? ` · ${selectedDistrictName}` : ""}`}
               </span>
               <select
                 className="top-listings-sort"
@@ -503,7 +513,9 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
               </select>
             </div>
 
-            {topListings.length === 0 ? (
+            {topListingsLoading ? (
+              <p className="top-listings-empty">Загрузка…</p>
+            ) : topListings.length === 0 ? (
               <p className="top-listings-empty">Нет объявлений</p>
             ) : (
               <ol className="top-listings-list">

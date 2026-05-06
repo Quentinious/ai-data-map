@@ -3,12 +3,18 @@ import {
   generateAreaSummary,
   type AIAreaSummaryResponse
 } from "../api/ai";
+import type { SnapshotFilters } from "../types/areaSnapshot";
 
 type AISummaryPanelProps = {
   districtId: string | null;
+  filters: SnapshotFilters;
+  dataset?: {
+    mode?: string;
+    updatedAt?: string;
+  };
 };
 
-export function AISummaryPanel({ districtId }: AISummaryPanelProps) {
+export function AISummaryPanel({ districtId, filters, dataset }: AISummaryPanelProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
   const [data, setData] = useState<AIAreaSummaryResponse | null>(null);
@@ -30,7 +36,11 @@ export function AISummaryPanel({ districtId }: AISummaryPanelProps) {
     setError("");
 
     try {
-      const summary = await generateAreaSummary(districtId);
+      const summary = await generateAreaSummary({
+        districtId,
+        filters,
+        dataset,
+      });
       setData(summary);
     } catch (err: unknown) {
       setData(null);
@@ -45,12 +55,12 @@ export function AISummaryPanel({ districtId }: AISummaryPanelProps) {
       <h3>AI Summary</h3>
       <div className="ai-summary-actions">
         <button type="button" onClick={runGenerate} disabled={!canGenerate || loading} className="retry-button">
-          {loading ? "Generating..." : "Generate summary"}
+          {loading ? "Генерирую..." : "Сгенерировать AI summary"}
         </button>
       </div>
 
       {!canGenerate && <p className="muted">Выберите район, чтобы сгенерировать summary.</p>}
-      {loading && <p>Loading AI summary...</p>}
+      {loading && <p>Генерация summary...</p>}
 
       {error && (
         <div className="snapshot-error-block">
@@ -63,11 +73,7 @@ export function AISummaryPanel({ districtId }: AISummaryPanelProps) {
 
       {data && (
         <>
-          <ul className="metrics-list ai-summary-list">
-            {data.summaryPoints.map((point, index) => (
-              <li key={`${index}-${point}`}>{point}</li>
-            ))}
-          </ul>
+          <p className="ai-summary-text">{data.summaryText}</p>
           {data.warnings.length > 0 && (
             <ul className="ai-summary-warnings">
               {data.warnings.map((warning) => (
@@ -76,7 +82,7 @@ export function AISummaryPanel({ districtId }: AISummaryPanelProps) {
             </ul>
           )}
           <p className="asof-line">
-            Район: {data.district.name} · набор данных: {data.dataset.mode}
+            Район: {data.district.name} · набор данных: {data.dataset.mode} · источник: {data.source}
           </p>
         </>
       )}

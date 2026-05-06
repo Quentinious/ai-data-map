@@ -113,7 +113,11 @@ export default function App() {
             </>
           )}
 
-          <AISummaryPanel districtId={selectedId || null} />
+          <AISummaryPanel
+            districtId={selectedId || null}
+            filters={filters}
+            dataset={snapshot?.dataset}
+          />
         </section>
 
         <section className="map-placeholder" aria-label="interactive map">

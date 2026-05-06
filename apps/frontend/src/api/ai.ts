@@ -9,7 +9,11 @@ export type AICountrySummaryResponse = {
 };
 
 export type AIAreaSummaryResponse = {
-  summaryPoints: string[];
+  summaryText: string;
+  source: "openai" | "gemini" | "ollama" | "gigachat" | "template";
+  provider: "openai" | "gemini" | "ollama" | "gigachat" | "template";
+  reason?: "disabled_flag" | "missing_api_key" | "provider_error_unsupported_region" | "error";
+  model?: string;
   warnings: string[];
   district: {
     id: string;
@@ -18,6 +22,27 @@ export type AIAreaSummaryResponse = {
   dataset: {
     mode: string;
     updatedAt: string;
+  };
+  cache: {
+    hit: boolean;
+    key: string;
+    ttlSeconds: number;
+  };
+};
+
+export type AIAreaSummaryRequest = {
+  districtId: string;
+  filters?: {
+    rooms?: number;
+    userType?: string;
+    minArea?: number;
+    maxArea?: number;
+    minPrice?: number;
+    maxPrice?: number;
+  };
+  dataset?: {
+    mode?: string;
+    updatedAt?: string;
   };
 };
 
@@ -49,17 +74,17 @@ export async function generateCountrySummary(countryCode: string): Promise<AICou
   return payload as AICountrySummaryResponse;
 }
 
-export async function generateAreaSummary(districtId: string): Promise<AIAreaSummaryResponse> {
-  const response = await fetch(`${baseUrl}/v1/ai/area-summary`, {
+export async function generateAreaSummary(request: AIAreaSummaryRequest): Promise<AIAreaSummaryResponse> {
+  const response = await fetch(`${baseUrl}/v1/ai/summary`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({ districtId, language: "ru" })
+    body: JSON.stringify(request)
   });
 
   const payload = (await response.json()) as
-    | AIAreaSummaryResponse
+    | { data: AIAreaSummaryResponse }
     | { error?: { message?: string } };
 
   if (!response.ok) {
@@ -70,9 +95,9 @@ export async function generateAreaSummary(districtId: string): Promise<AIAreaSum
     throw new Error(message);
   }
 
-  if (!("summaryPoints" in payload) || !Array.isArray((payload as AIAreaSummaryResponse).summaryPoints)) {
+  if (!("data" in payload) || typeof payload.data?.summaryText !== "string") {
     throw new Error("Invalid AI area summary response format");
   }
 
-  return payload as AIAreaSummaryResponse;
+  return payload.data;
 }

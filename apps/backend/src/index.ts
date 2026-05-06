@@ -1,5 +1,7 @@
 import cors from "cors";
+import { config as loadDotenv } from "dotenv";
 import express, { type NextFunction, type Request, type Response } from "express";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +10,27 @@ import type { ApiError, Country } from "./types.js";
 import v1Router from "./routes/v1/index.js";
 import { loadDistricts } from "./services/loadDistricts.js";
 import { getFilteredListings } from "./services/loadListings.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+function loadBackendEnv(): void {
+  const candidatePaths = [
+    path.resolve(process.cwd(), "apps/backend/.env"),
+    path.resolve(process.cwd(), ".env"),
+    path.resolve(__dirname, "../.env"),
+  ];
+
+  const envPath = candidatePaths.find((candidate) => existsSync(candidate));
+  if (!envPath) {
+    return;
+  }
+
+  loadDotenv({ path: envPath });
+  console.log(`BOOT: backend env loaded from ${envPath}`);
+}
+
+loadBackendEnv();
 
 console.log("BOOT: active backend entrypoint: apps/backend/src/index.ts");
 
@@ -20,8 +43,6 @@ app.use(express.json());
 // Store getCountries reference for use by other routers
 app.locals.getCountries = null as (((...args: unknown[]) => Promise<Country[]>) | null);
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const countriesFilePath = path.resolve(__dirname, "../data/countries.json");
 
 let countriesCache: Country[] | null = null;

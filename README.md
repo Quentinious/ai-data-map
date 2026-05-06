@@ -26,14 +26,15 @@ tools/
   - опциональные фильтры: `rooms`, `minArea`, `maxArea`, `minPrice`, `maxPrice`
 - `GET /v1/map/districts` — данные choropleth-карты по районам (медиана ₽/м², кол-во объявлений)
 - `GET /v1/map/listings` — топ объявлений для выбранного района (см. ниже)
-- `POST /v1/ai/area-summary` — AI-сводка по рынку района (mock/template по умолчанию)
+- `POST /v1/ai/summary` — AI-сводка по рынку района (OpenAI при включенном флаге, иначе template fallback)
+- *(Legacy)* `POST /v1/ai/area-summary` — старый endpoint AI-сводки района
 - *(Legacy)* `GET /v1/countries/:code/snapshot` — snapshot страны (устарело)
 - *(Legacy)* `POST /v1/ai/country-summary` — AI-сводка страны (устарело)
 
 ### Frontend (`apps/frontend`)
 
 - Choropleth-карта районов (полигоны GeoJSON, цвет = медиана ₽/м²)
-- При выборе района — overlay «Топ 5 объявлений» с сортировкой и пронумерованными маркерами
+- При выборе района — Top-5 объявлений в правой панели, синхронизированные с пронумерованными маркерами
 - Карточка аналитики района (AreaCard): цены, цена/м², площадь, топ-5 объявлений
 - Панель AI Summary с кнопкой генерации
 - Состояния loading / error + кнопка Retry
@@ -131,6 +132,8 @@ npx tsx tools/ingest/restapp-import.ts /path/to/export.xlsx /path/to/listings.re
 LISTINGS_DATA_PATH=/path/to/listings.real.json
 ```
 
+При запуске из корня (`npm run dev`) backend автоматически загружает `apps/backend/.env`.
+
 Или передайте переменную прямо при запуске:
 
 ```bash
@@ -165,41 +168,91 @@ Frontend: http://localhost:5173
 
 ## AI Summary
 
-По умолчанию AI Summary работает в **mock/template-режиме**: детерминированная сводка по данным без внешних вызовов.
+По умолчанию AI Summary работает в **template-режиме**: детерминированная сводка по агрегированным данным без внешних вызовов.
 
 ### Переменные окружения AI
 
 | Переменная      | По умолчанию | Описание |
 |-----------------|--------------|----------|
-| `AI_USE_MOCK`   | `true` (в dev) | `true` = всегда использовать template-сводку |
-| `AI_LLM_ENABLED`| `false`      | `true` = включить реальный LLM-провайдер |
-| `AI_PROVIDER`   | —            | Название провайдера (например, `openai`) |
-| `AI_API_KEY`    | —            | API-ключ провайдера |
-| `AI_MODEL`      | —            | Название модели (например, `gpt-4o-mini`) |
-| `AI_DEFAULT_LANGUAGE` | `ru`  | Язык сводки |
+| `AI_SUMMARY_ENABLED` | `false` | `true` = разрешить вызов AI-провайдера для `/v1/ai/summary` |
+| `AI_PROVIDER` | `openai` | Выбор провайдера: `openai`, `gemini` или `ollama` |
+| `OPENAI_API_KEY` | — | API-ключ OpenAI |
+| `OPENAI_MODEL` | `gpt-4o-mini` | Модель OpenAI |
+| `GEMINI_API_KEY` | — | API-ключ Gemini |
+| `GEMINI_MODEL` | `gemini-2.0-flash` | Модель Gemini |
+| `OLLAMA_BASE_URL` | `http://127.0.0.1:11434` | Базовый URL Ollama |
+| `OLLAMA_MODEL` | — | Имя модели Ollama |
+| `GIGACHAT_AUTH_KEY` | — | Ключ авторизации GigaChat (для OAuth) |
+| `GIGACHAT_MODEL` | `GigaChat-2-Pro` | Модель GigaChat |
+| `GIGACHAT_SCOPE` | `GIGACHAT_API_PERS` | Область доступа OAuth |
+| `GIGACHAT_AUTH_URL` | `https://ngw.devices.sberbank.ru:9443/api/v2/oauth` | URL для получения access_token |
+| `GIGACHAT_API_BASE_URL` | `https://gigachat.devices.sberbank.ru/api/v1` | Базовый URL API GigaChat |
 
-### Включение реального LLM
+Совместимость: backend также читает legacy `AI_API_KEY` и `AI_MODEL` для OpenAI, если `OPENAI_*` не заданы.
 
-1. Установите `AI_LLM_ENABLED=true` в `apps/backend/.env`
-2. Заполните `AI_PROVIDER`, `AI_API_KEY`, `AI_MODEL`
-3. Реализуйте SDK-вызов в `apps/backend/src/ai/llmProvider.ts` (файл содержит подробный комментарий с примером для OpenAI)
+### Поведение fallback и защита
 
-При ошибке LLM сервис автоматически переключается на template-сводку (graceful fallback).
+В endpoint `POST /v1/ai/summary` реализованы:
+- fallback на template summary при отключенном AI, ошибке провайдера или недоступности AI в регионе
+- in-memory cache по ключу `hash(districtId + filters + dataset + dataVersion)`
+- TTL кэша: 30 минут
+- ограничение длины prompt
+- timeout запроса к AI-провайдеру
+- rate limit на запросы summary
+
+Если OpenAI отвечает `403` с `unsupported_country_region_territory`, сервис не считает это ошибкой настройки: он возвращает template-сводку и `reason=provider_error_unsupported_region`.
+
+Если нужен другой провайдер, переключите только `AI_PROVIDER`:
+
+```bash
+AI_PROVIDER=gemini
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.0-flash
+```
+
+```bash
+AI_PROVIDER=ollama
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_MODEL=llama3.1
+```
+
+```bash
+AI_PROVIDER=gigachat
+GIGACHAT_AUTH_KEY=ваш_authorization_key
+GIGACHAT_MODEL=GigaChat-2-Pro
+GIGACHAT_SCOPE=GIGACHAT_API_PERS
+GIGACHAT_AUTH_URL=https://ngw.devices.sberbank.ru:9443/api/v2/oauth
+GIGACHAT_API_BASE_URL=https://gigachat.devices.sberbank.ru/api/v1
+```
+
+### GigaChat (Sberbank API)
+
+GigaChat — это решение Sberbank для регионов, где OpenAI и Gemini недоступны.
+
+**Важно:** `GIGACHAT_AUTH_KEY` — это ключ авторизации для OAuth, не access_token. Backend автоматически получит access_token через OAuth и будет обновлять его при необходимости.
+
+В ответе `POST /v1/ai/summary` также есть диагностика:
+- `provider`: `openai` | `gemini` | `ollama` | `gigachat` | `template`
+- `reason` (когда `provider=template`): `disabled_flag` | `missing_api_key` | `provider_error_unsupported_region` | `error`
+- `model` (если выбран какой-то LLM-провайдер)
+
+### Региональная доступность OpenAI
+
+Если OpenAI недоступен в вашем регионе, `/v1/ai/summary` автоматически откатится к template summary. Для таких случаев в ответе будет `reason=provider_error_unsupported_region`, а в `warnings` появится понятное объяснение.
 
 ### Пример включения (curl)
 
 ```bash
 # apps/backend/.env
-AI_LLM_ENABLED=true
-AI_PROVIDER=openai
-AI_API_KEY=sk-...
-AI_MODEL=gpt-4o-mini
+AI_SUMMARY_ENABLED=true
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o-mini
 ```
 
 ```bash
-curl -s -X POST http://127.0.0.1:4000/v1/ai/area-summary \
+curl -s -X POST http://127.0.0.1:4000/v1/ai/summary \
   -H "Content-Type: application/json" \
-  -d '{"districtId":"centralny","language":"ru"}'
+  -d '{"districtId":"centralny","filters":{"rooms":2,"minArea":40,"maxArea":70}}'
 ```
 
 ## API Examples
@@ -242,16 +295,16 @@ curl "http://127.0.0.1:4000/v1/map/listings?districtId=centralny&sort=priceRub&r
 ### AI Summary (curl)
 
 ```bash
-curl -s -X POST http://127.0.0.1:4000/v1/ai/area-summary \
+curl -s -X POST http://127.0.0.1:4000/v1/ai/summary \
   -H "Content-Type: application/json" \
-  -d '{"districtId":"centralny","language":"ru"}'
+  -d '{"districtId":"centralny","filters":{"rooms":2}}'
 ```
 
 ### AI Summary (PowerShell / Windows)
 
 ```powershell
-$body = @{ districtId = "centralny"; language = "ru" } | ConvertTo-Json -Compress
-Invoke-RestMethod -Uri "http://127.0.0.1:4000/v1/ai/area-summary" -Method Post -ContentType "application/json" -Body $body
+$body = @{ districtId = "centralny"; filters = @{ rooms = 2; minArea = 40; maxArea = 70 } } | ConvertTo-Json -Compress
+Invoke-RestMethod -Uri "http://127.0.0.1:4000/v1/ai/summary" -Method Post -ContentType "application/json" -Body $body
 ```
 
 ### Фильтрация объявлений
@@ -264,9 +317,10 @@ curl "http://127.0.0.1:4000/api/listings?districtId=centralny&rooms=2"
 
 1. Запустите `npm run dev`
 2. Откройте http://localhost:5173
-3. **Карта без выбора района**: видны только полигоны районов (choropleth), никаких центроидных маркеров
-4. **Выбор района**: кликните на полигон или выберите из списка → полигон подсвечивается, карта летит к нему
-5. **Overlay «Топ 5»**: появляется в левом нижнем углу карты с первыми 5 объявлениями; используйте dropdown для смены сортировки
-6. **Маркеры на карте**: пронумерованные синие кружки (1–5) на позициях объявлений, кликните → popup с деталями
-7. **Popup объявления**: содержит цену, площадь, ₽/м², адрес, метро, тип продавца и ссылку
-8. **AI Summary**: нажмите «Generate summary» → template-сводка появится в левой панели
+3. **Карта без выбора района**: видны только полигоны районов (choropleth), без большого popup поверх карты
+4. **Выбор района**: кликните на полигон или выберите из списка → полигон подсвечивается, карта летит к нему, справа обновляется Top-5
+5. **Правый сайдбар**: справа от карты видны легенда «МЕДИАНА ₽/м²», Top-5 и карточка выбранного объявления; на mobile эти блоки уходят ниже карты
+6. **Маркеры на карте**: отображаются только объявления с валидными координатами; номера маркеров 1..N совпадают с номерами строк в списке. Tooltip у маркера компактный: цена, м², ₽/м².
+7. **Синхронизация выбора**: клик по маркеру выделяет строку в списке; клик по строке списка фокусирует карту на объявлении и выделяет маркер
+8. **Если координат меньше 5**: показывается предупреждение «Показано N объявлений с координатами»
+9. **AI Summary**: нажмите «Сгенерировать AI summary» → появится summary (OpenAI при включенном флаге, иначе template fallback)

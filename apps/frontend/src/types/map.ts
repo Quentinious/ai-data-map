@@ -44,5 +44,12 @@ export type DistrictTopListingsResponse = {
   sort: TopListingsSort;
   total: number;
   listings: TopListingItem[];
+  mappingMeta?: {
+    requested: number;
+    returned: number;
+    skippedNoCoords: number;
+    skippedOutOfBbox: number;
+    swappedCount: number;
+  };
   warnings: string[];
 };

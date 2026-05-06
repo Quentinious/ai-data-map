@@ -10,3 +10,8 @@ tools/node_modules/
 tools/dist/
 .npm-cache/
 .tmp/
+
+.env
+.env.local
+apps/backend/.env
+apps/frontend/.env

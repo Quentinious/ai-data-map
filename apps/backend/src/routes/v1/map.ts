@@ -16,6 +16,34 @@ function firstString(value: string | string[] | undefined): string | undefined {
   return value;
 }
 
+function isInNskBbox(lat: number, lon: number): boolean {
+  return lat >= NSK_BBOX.latMin && lat <= NSK_BBOX.latMax && lon >= NSK_BBOX.lngMin && lon <= NSK_BBOX.lngMax;
+}
+
+function normalizeListingCoords(latRaw: number | undefined, lonRaw: number | undefined): {
+  lat: number;
+  lon: number;
+  swapped: boolean;
+} | null {
+  if (latRaw === undefined || lonRaw === undefined) {
+    return null;
+  }
+
+  if (!Number.isFinite(latRaw) || !Number.isFinite(lonRaw)) {
+    return null;
+  }
+
+  if (isInNskBbox(latRaw, lonRaw)) {
+    return { lat: latRaw, lon: lonRaw, swapped: false };
+  }
+
+  if (isInNskBbox(lonRaw, latRaw)) {
+    return { lat: lonRaw, lon: latRaw, swapped: true };
+  }
+
+  return null;
+}
+
 router.get("/map/districts", async (req: Request, res: Response) => {
   const parsed = parseListingFilters(req.query as Record<string, string | string[] | undefined>);
 
@@ -112,23 +140,46 @@ router.get("/map/listings", async (req: Request, res: Response) => {
       }
     });
 
-    // Build top-N list, validate coords within Novosibirsk bbox
-    const listings = sorted.slice(0, limit).map((listing) => {
-      let lat: number | undefined;
-      let lon: number | undefined;
-      if (listing.lat !== undefined && listing.lon !== undefined) {
-        const inBbox =
-          listing.lat >= NSK_BBOX.latMin &&
-          listing.lat <= NSK_BBOX.latMax &&
-          listing.lon >= NSK_BBOX.lngMin &&
-          listing.lon <= NSK_BBOX.lngMax;
-        if (inBbox) {
-          lat = listing.lat;
-          lon = listing.lon;
-        }
+    // Build top-N from sorted listings using only mappable coordinates.
+    const listings: Array<{
+      id: string;
+      districtId: string;
+      url: string;
+      address: string;
+      rooms: 1 | 2 | 3 | 4;
+      areaM2: number;
+      priceRub: number;
+      pricePerM2: number;
+      publishedAt: string;
+      metro?: string;
+      userType?: string;
+      lat: number;
+      lon: number;
+    }> = [];
+    let skippedNoCoords = 0;
+    let skippedOutOfBbox = 0;
+    let swappedCount = 0;
+
+    for (const listing of sorted) {
+      if (listings.length >= limit) {
+        break;
       }
 
-      return {
+      const normalizedCoords = normalizeListingCoords(listing.lat, listing.lon);
+      if (!normalizedCoords) {
+        if (listing.lat === undefined || listing.lon === undefined || !Number.isFinite(listing.lat) || !Number.isFinite(listing.lon)) {
+          skippedNoCoords += 1;
+        } else {
+          skippedOutOfBbox += 1;
+        }
+        continue;
+      }
+
+      if (normalizedCoords.swapped) {
+        swappedCount += 1;
+      }
+
+      listings.push({
         id: listing.id,
         districtId: listing.districtId,
         url: listing.url,
@@ -140,14 +191,25 @@ router.get("/map/listings", async (req: Request, res: Response) => {
         publishedAt: listing.publishedAt,
         ...(listing.metro !== undefined ? { metro: listing.metro } : {}),
         ...(listing.userType !== undefined ? { userType: listing.userType } : {}),
-        ...(lat !== undefined ? { lat } : {}),
-        ...(lon !== undefined ? { lon } : {}),
-      };
-    });
+        lat: normalizedCoords.lat,
+        lon: normalizedCoords.lon,
+      });
+    }
+
+    const mappingMeta = {
+      requested: limit,
+      returned: listings.length,
+      skippedNoCoords,
+      skippedOutOfBbox,
+      swappedCount,
+    };
 
     const warnings: string[] = [];
     if (getDatasetMode() === "sample") {
       warnings.push("Данные синтетические (sample). Не используйте для реальных сделок.");
+    }
+    if (mappingMeta.returned < mappingMeta.requested) {
+      warnings.push(`Показано ${mappingMeta.returned} объявлений с координатами (из ${mappingMeta.requested}).`);
     }
 
     res.json({
@@ -156,6 +218,7 @@ router.get("/map/listings", async (req: Request, res: Response) => {
         sort,
         total: withPpm2.length,
         listings,
+        mappingMeta,
         warnings,
       }
     });

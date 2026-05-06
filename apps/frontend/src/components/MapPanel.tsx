@@ -1,7 +1,7 @@
 import type { Feature, FeatureCollection, Geometry } from "geojson";
 import L from "leaflet";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { GeoJSON, MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { GeoJSON, MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
 import { fetchDistrictMapData, fetchDistrictTopListings } from "../api/map";
 import { districtCentroidsNsk } from "../data/districtCentroids.nsk";
 import type { SnapshotFilters } from "../types/areaSnapshot";
@@ -170,6 +170,31 @@ function buildListingMarkerIcon(index: number, selected: boolean): L.DivIcon {
   });
 }
 
+function SelectedListingFlyTo({
+  listings,
+  selectedListingId,
+}: {
+  listings: TopListingItem[];
+  selectedListingId: string | null;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!selectedListingId) {
+      return;
+    }
+
+    const listing = listings.find((item) => item.id === selectedListingId);
+    if (!listing || listing.lat === undefined || listing.lon === undefined) {
+      return;
+    }
+
+    map.flyTo([listing.lat, listing.lon], Math.max(map.getZoom(), 13), { duration: 0.55 });
+  }, [listings, map, selectedListingId]);
+
+  return null;
+}
+
 function SelectedDistrictFlyTo({
   districts,
   selectedDistrictId,
@@ -264,6 +289,7 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
   const [topListingsSort, setTopListingsSort] = useState<TopListingsSort>("publishedAt");
   const [topListingsLoading, setTopListingsLoading] = useState(false);
   const [selectedListingId, setSelectedListingId] = useState<string | null>(null);
+  const [topListingsWarning, setTopListingsWarning] = useState<string>("");
   const topListingsAbortRef = useRef<AbortController | null>(null);
 
   // Refs so onEachFeature callbacks always see the latest values without re-mounting the GeoJSON layer
@@ -308,6 +334,7 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
       setTopListings([]);
       setTopListingsLoading(false);
       setSelectedListingId(null);
+      setTopListingsWarning("");
       return;
     }
 
@@ -320,12 +347,20 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
         if (!controller.signal.aborted) {
           setTopListings(result.listings);
           setSelectedListingId(null);
+          if (result.mappingMeta && result.mappingMeta.returned < result.mappingMeta.requested) {
+            setTopListingsWarning(
+              `Показано ${result.mappingMeta.returned} объявлений с координатами (из ${result.mappingMeta.requested}).`,
+            );
+          } else {
+            setTopListingsWarning("");
+          }
         }
       })
       .catch((err: unknown) => {
         if (!controller.signal.aborted) {
           console.warn("Failed to load top listings:", err);
           setTopListings([]);
+          setTopListingsWarning("");
         }
       })
       .finally(() => {
@@ -392,13 +427,14 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
   };
 
   const selectedDistrictName = districts.find((d) => d.id === selectedDistrictId)?.name;
+  const selectedListing = topListings.find((item) => item.id === selectedListingId) ?? null;
 
   return (
     <section className="map-panel">
       <div className="map-panel-header">
         <div>
-          <h3>Interactive map</h3>
-          <p>Leaflet + OpenStreetMap без ключей. Цвет полигона показывает медиану ₽/м² по району.</p>
+          <h3>Карта районов</h3>
+          <p>Чороплет районов и объявления с координатами. Подсказки и детали вынесены в правую панель.</p>
         </div>
 
         {data && (
@@ -422,146 +458,145 @@ export function MapPanel({ selectedDistrictId, filters, onDistrictSelect }: MapP
         </div>
       )}
 
-      <div className="map-shell">
+      <div className="map-shell map-shell--split">
         {loading && <div className="map-overlay">Загрузка карты районов…</div>}
 
-        <MapContainer center={NOVOSIBIRSK_CENTER} zoom={NOVOSIBIRSK_ZOOM} scrollWheelZoom className="map-canvas">
-          <FitBoundsOnLoad districts={districts} geoData={geoData} />
-          <SelectedDistrictFlyTo districts={districts} selectedDistrictId={selectedDistrictId} geoData={geoData} />
+        <div className="map-canvas-wrap">
+          <MapContainer center={NOVOSIBIRSK_CENTER} zoom={NOVOSIBIRSK_ZOOM} scrollWheelZoom className="map-canvas">
+            <FitBoundsOnLoad districts={districts} geoData={geoData} />
+            <SelectedDistrictFlyTo districts={districts} selectedDistrictId={selectedDistrictId} geoData={geoData} />
+            <SelectedListingFlyTo listings={topListings} selectedListingId={selectedListingId} />
 
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-
-          {geoData && (
-            <GeoJSON
-              data={geoData}
-              style={polygonStyle}
-              onEachFeature={onEachFeature}
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-          )}
 
-          {/* Numbered markers for top listings (only for selected district) */}
-          {topListings.map((listing, index) => {
-            if (listing.lat === undefined || listing.lon === undefined) return null;
-            const isSelected = listing.id === selectedListingId;
-            return (
-              <Marker
-                key={listing.id}
-                position={[listing.lat, listing.lon]}
-                icon={buildListingMarkerIcon(index, isSelected)}
-                eventHandlers={{
-                  click: () => setSelectedListingId(isSelected ? null : listing.id),
-                }}
-                zIndexOffset={isSelected ? 1000 : 0}
-              >
-                <Popup>
-                  <div className="listing-popup">
-                    <p className="listing-popup-title">
-                      #{index + 1} · {listing.rooms}-к, {listing.areaM2} м²
-                    </p>
-                    <p className="listing-popup-price">{formatPrice(listing.priceRub)}</p>
-                    <p className="listing-popup-ppm2">{listing.pricePerM2.toLocaleString("ru-RU")} ₽/м²</p>
-                    {listing.address && <p className="listing-popup-address">{listing.address}</p>}
-                    {listing.metro && <p className="listing-popup-metro">🚇 {listing.metro}</p>}
-                    {listing.userType && <p className="listing-popup-usertype">{listing.userType}</p>}
-                    <a href={listing.url} target="_blank" rel="noopener noreferrer" className="listing-popup-link">
-                      Открыть объявление ↗
-                    </a>
-                  </div>
-                </Popup>
-              </Marker>
-            );
-          })}
-        </MapContainer>
-
-        <div className="map-legend" aria-label="Легенда карты">
-          <h4>Медиана ₽/м²</h4>
-          <ul>
-            {legendBands.map((band) => (
-              <li key={band.label}>
-                <span className="map-legend-swatch" style={{ backgroundColor: band.color }} />
-                <span>{band.label}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        {/* Top 5 listings overlay — shown when a district is selected */}
-        {selectedDistrictId && (
-          <div className="top-listings-overlay" aria-label="Топ объявлений района">
-            <div className="top-listings-header">
-              <span className="top-listings-title">
-                {topListingsLoading
-                  ? `Объявления${selectedDistrictName ? ` · ${selectedDistrictName}` : ""}`
-                  : topListings.length > 0
-                    ? `Топ ${topListings.length}${selectedDistrictName ? ` · ${selectedDistrictName}` : ""}`
-                    : `Объявления${selectedDistrictName ? ` · ${selectedDistrictName}` : ""}`}
-              </span>
-              <select
-                className="top-listings-sort"
-                value={topListingsSort}
-                onChange={(e) => setTopListingsSort(e.target.value as TopListingsSort)}
-                aria-label="Сортировка объявлений"
-              >
-                {(Object.keys(SORT_LABELS) as TopListingsSort[]).map((key) => (
-                  <option key={key} value={key}>
-                    {SORT_LABELS[key]}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {topListingsLoading ? (
-              <p className="top-listings-empty">Загрузка…</p>
-            ) : topListings.length === 0 ? (
-              <p className="top-listings-empty">Нет объявлений</p>
-            ) : (
-              <ol className="top-listings-list">
-                {topListings.map((listing, index) => {
-                  const isSelected = listing.id === selectedListingId;
-                  return (
-                    <li
-                      key={listing.id}
-                      className={`top-listings-item${isSelected ? " top-listings-item--selected" : ""}`}
-                      onClick={() => setSelectedListingId(isSelected ? null : listing.id)}
-                    >
-                      <span className="top-listings-num">{index + 1}</span>
-                      <span className="top-listings-rooms">{listing.rooms}-к</span>
-                      <span className="top-listings-area">{listing.areaM2} м²</span>
-                      <span className="top-listings-price">{formatPrice(listing.priceRub)}</span>
-                      <span className="top-listings-ppm2">{listing.pricePerM2.toLocaleString("ru-RU")} ₽/м²</span>
-                    </li>
-                  );
-                })}
-              </ol>
+            {geoData && (
+              <GeoJSON
+                data={geoData}
+                style={polygonStyle}
+                onEachFeature={onEachFeature}
+              />
             )}
 
-            {/* Expanded detail for selected listing */}
-            {selectedListingId && (() => {
-              const listing = topListings.find((l) => l.id === selectedListingId);
-              if (!listing) return null;
+            {/* Numbered markers for top listings (only for selected district) */}
+            {topListings.map((listing, index) => {
+              if (listing.lat === undefined || listing.lon === undefined) return null;
+              const isSelected = listing.id === selectedListingId;
               return (
-                <div className="top-listings-detail">
-                  <p className="top-listings-detail-address">{listing.address}</p>
-                  {listing.metro && <p className="top-listings-detail-metro">🚇 {listing.metro}</p>}
-                  {listing.userType && (
-                    <p className="top-listings-detail-usertype">Продавец: {listing.userType}</p>
-                  )}
-                  <a
-                    href={listing.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="top-listings-detail-link"
-                  >
-                    Открыть объявление ↗
-                  </a>
-                </div>
+                <Marker
+                  key={listing.id}
+                  position={[listing.lat, listing.lon]}
+                  icon={buildListingMarkerIcon(index, isSelected)}
+                  eventHandlers={{
+                    click: () => setSelectedListingId(isSelected ? null : listing.id),
+                  }}
+                  zIndexOffset={isSelected ? 1000 : 0}
+                >
+                  <Tooltip direction="top" offset={[0, -10]} opacity={1} permanent={false} className="listing-tooltip">
+                    <span>#{index + 1}</span>
+                    <span>{formatPrice(listing.priceRub)}</span>
+                    <span>{listing.pricePerM2.toLocaleString("ru-RU")} ₽/м²</span>
+                  </Tooltip>
+                </Marker>
               );
-            })()}
+            })}
+          </MapContainer>
+
+          <p className="map-legend-caption">Цвет района = медиана ₽/м²</p>
+        </div>
+
+        <aside className="map-sidebar" aria-label="Панель карты">
+          <div className="map-legend-panel map-legend-panel--sidebar" aria-label="Легенда карты">
+            <h4>МЕДИАНА ₽/м²</h4>
+            <ul>
+              {legendBands.map((band) => (
+                <li key={band.label}>
+                  <span className="map-legend-swatch" style={{ backgroundColor: band.color }} />
+                  <span>{band.label}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-        )}
+
+          {selectedDistrictId && (
+            <div className="top-listings-overlay top-listings-overlay--sidebar" aria-label="Топ объявлений района">
+              <div className="top-listings-header">
+                <span className="top-listings-title">
+                  {topListingsLoading
+                    ? `Объявления${selectedDistrictName ? ` · ${selectedDistrictName}` : ""}`
+                    : topListings.length > 0
+                      ? `Топ ${topListings.length}${selectedDistrictName ? ` · ${selectedDistrictName}` : ""}`
+                      : `Объявления${selectedDistrictName ? ` · ${selectedDistrictName}` : ""}`}
+                </span>
+                <select
+                  className="top-listings-sort"
+                  value={topListingsSort}
+                  onChange={(e) => setTopListingsSort(e.target.value as TopListingsSort)}
+                  aria-label="Сортировка объявлений"
+                >
+                  {(Object.keys(SORT_LABELS) as TopListingsSort[]).map((key) => (
+                    <option key={key} value={key}>
+                      {SORT_LABELS[key]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {!!topListingsWarning && <p className="top-listings-warning">{topListingsWarning}</p>}
+
+              {topListingsLoading ? (
+                <p className="top-listings-empty">Загрузка…</p>
+              ) : topListings.length === 0 ? (
+                <p className="top-listings-empty">Нет объявлений</p>
+              ) : (
+                <ol className="top-listings-list">
+                  {topListings.map((listing, index) => {
+                    const isSelected = listing.id === selectedListingId;
+                    return (
+                      <li
+                        key={listing.id}
+                        className={`top-listings-item${isSelected ? " top-listings-item--selected" : ""}`}
+                        onClick={() => setSelectedListingId(isSelected ? null : listing.id)}
+                      >
+                        <span className="top-listings-num">{index + 1}</span>
+                        <span className="top-listings-rooms">{listing.rooms}-к</span>
+                        <span className="top-listings-area">{listing.areaM2} м²</span>
+                        <span className="top-listings-price">{formatPrice(listing.priceRub)}</span>
+                        <span className="top-listings-ppm2">{listing.pricePerM2.toLocaleString("ru-RU")} ₽/м²</span>
+                      </li>
+                    );
+                  })}
+                </ol>
+              )}
+            </div>
+          )}
+
+          {selectedListing && (
+            <div className="top-listings-detail top-listings-detail--sidebar">
+              <p className="top-listings-detail-headline">
+                #{topListings.findIndex((item) => item.id === selectedListing.id) + 1} · {selectedListing.rooms}-к, {selectedListing.areaM2} м²
+              </p>
+              <p className="top-listings-detail-price">
+                {formatPrice(selectedListing.priceRub)} · {selectedListing.pricePerM2.toLocaleString("ru-RU")} ₽/м²
+              </p>
+              {selectedListing.address && <p className="top-listings-detail-address">{selectedListing.address}</p>}
+              {selectedListing.metro && <p className="top-listings-detail-metro">🚇 {selectedListing.metro}</p>}
+              {selectedListing.userType && (
+                <p className="top-listings-detail-usertype">Продавец: {selectedListing.userType}</p>
+              )}
+              <a
+                href={selectedListing.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="top-listings-detail-link"
+              >
+                Открыть объявление ↗
+              </a>
+            </div>
+          )}
+        </aside>
       </div>
 
       {data?.warnings.length ? (

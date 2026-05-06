@@ -7,7 +7,12 @@
     "dev": "concurrently \"npm run dev -w apps/backend\" \"npm run dev -w apps/frontend\"",
     "build": "npm run build -ws",
     "typecheck": "npm run typecheck -ws",
-    "geo:convert-nsk-districts": "tsx tools/geo/arcgis-boundary-to-geojson.ts"
+    "lint": "eslint apps/backend/src apps/frontend/src tools",
+    "lint:fix": "eslint apps/backend/src apps/frontend/src tools --fix",
+    "test": "npm run test -ws --if-present",
+    "geo:convert-nsk-districts": "tsx tools/geo/arcgis-boundary-to-geojson.ts",
+    "load:test:map": "k6 run tests/load/map-districts.k6.js",
+    "load:test:ai": "k6 run tests/load/ai-summary.k6.js"
   },
   "keywords": [],
   "author": "",
@@ -18,6 +23,9 @@
     "tools"
   ],
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^9.2.1",
+    "eslint": "^10.3.0",
+    "typescript-eslint": "^8.59.2"
   }
 }

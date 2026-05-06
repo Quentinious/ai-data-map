@@ -313,6 +313,108 @@ Invoke-RestMethod -Uri "http://127.0.0.1:4000/v1/ai/summary" -Method Post -Conte
 curl "http://127.0.0.1:4000/api/listings?districtId=centralny&rooms=2"
 ```
 
+## Quality Checks
+
+```bash
+npm run typecheck   # TypeScript type checking (all workspaces)
+npm run lint        # ESLint (TypeScript rules, backend + frontend + tools)
+npm run lint:fix    # Auto-fix lint issues where possible
+npm run test        # Vitest unit tests (backend)
+npm run build       # Production build (all workspaces)
+```
+
+## Postman
+
+Коллекция и окружение находятся в `docs/postman/`:
+
+| Файл | Описание |
+|------|---------|
+| `ai-data-map.postman_collection.json` | 7 запросов ко всем публичным эндпоинтам |
+| `local.postman_environment.json` | Локальное окружение: `baseUrl=http://127.0.0.1:4000`, `districtId=centralny` |
+
+**Импорт в Postman:**
+1. Postman → Import → выберите `ai-data-map.postman_collection.json`
+2. Postman → Import → выберите `local.postman_environment.json`
+3. Выберите окружение **"ai-data-map — Local"**
+4. Запускайте запросы
+
+## Docker
+
+```bash
+# 1. Создайте apps/backend/.env (скопируйте из .env.example и заполните ключи)
+cp apps/backend/.env.example apps/backend/.env
+
+# 2. Запустите через Docker Compose
+docker compose up --build
+
+# Backend:  http://localhost:4000
+# Frontend: http://localhost:5173
+```
+
+**Важно:** секреты передаются через `env_file` → `apps/backend/.env`, который добавлен в `.gitignore` и `.dockerignore`. Не бакируйте ключи в образы.
+
+## Load Testing (k6)
+
+```bash
+# Установите k6: https://k6.io/docs/getting-started/installation/
+
+# Запустите нагрузочные тесты
+npm run load:test:map   # GET /v1/map/districts
+npm run load:test:ai    # POST /v1/ai/summary
+
+# Кастомные параметры
+k6 run --vus 10 --duration 60s tests/load/map-districts.k6.js
+k6 run --env BASE_URL=http://127.0.0.1:4000 tests/load/ai-summary.k6.js
+```
+
+Пороговые значения: `map/districts` p95 < 500ms; `ai/summary` p95 < 3s (c учётом кэша).
+
+## Git Workflow / PR Process
+
+1. Создайте ветку от `main`: `git checkout -b feature/my-feature`
+2. Сделайте изменения, убедитесь что проходят все проверки:
+   ```bash
+   npm run typecheck && npm run lint && npm run test && npm run build
+   ```
+3. Откройте PR → выберите шаблон → заполните чеклист
+4. Линкуйте issue через `Closes #N` в описании PR
+
+## GigaChat: Troubleshooting
+
+GigaChat — провайдер Сбербанка для регионов, где OpenAI/Gemini недоступны.
+
+**Настройка:**
+```bash
+AI_SUMMARY_ENABLED=true
+AI_PROVIDER=gigachat
+GIGACHAT_AUTH_KEY=ваш_ключ_авторизации   # НЕ access_token, а ключ для OAuth
+GIGACHAT_MODEL=GigaChat-2-Pro
+GIGACHAT_SCOPE=GIGACHAT_API_PERS
+GIGACHAT_AUTH_URL=https://ngw.devices.sberbank.ru:9443/api/v2/oauth
+GIGACHAT_API_BASE_URL=https://gigachat.devices.sberbank.ru/api/v1
+```
+
+**Причины fallback** (поле `reason` в ответе `POST /v1/ai/summary`):
+
+| Код | Причина |
+|-----|---------|
+| `disabled_flag` | `AI_SUMMARY_ENABLED` не равен `true` |
+| `missing_api_key` | Провайдер настроен, но credentials отсутствуют |
+| `provider_error_missing_credentials` | Специфичный ключ/модель не задан |
+| `provider_error_tls` | Ошибка TLS/SSL при соединении |
+| `provider_error_auth` | Аутентификация отклонена провайдером (401/403) |
+| `provider_error_auth_bad_request` | OAuth-запрос вернул 400 |
+| `provider_error_chat` | Ошибка запроса chat completion (GigaChat) |
+| `provider_error_network` | Timeout или connection refused |
+| `provider_error_unsupported_region` | Провайдер вернул 403 `unsupported_country_region_territory` |
+| `template_fallback` | Общая ошибка, использован template |
+| `error` | Неизвестная ошибка |
+
+**Частые проблемы с GigaChat:**
+- `provider_error_tls`: убедитесь, что ваш сервер может подключиться к `ngw.devices.sberbank.ru:9443` (иногда нужен VPN для российских серверов).
+- `provider_error_auth`: проверьте формат `GIGACHAT_AUTH_KEY` — это Base64-encoded `ClientID:ClientSecret`, backend автоматически добавит префикс `Basic `.
+- `provider_error_auth_bad_request`: проверьте `GIGACHAT_SCOPE` (должен быть `GIGACHAT_API_PERS` или `GIGACHAT_API_CORP`).
+
 ## Ручное тестирование UX
 
 1. Запустите `npm run dev`

@@ -1,0 +1,13 @@
+node_modules/
+apps/*/node_modules/
+apps/*/dist/
+apps/**/*.tsbuildinfo
+tools/node_modules/
+tools/dist/
+.npm-cache/
+.tmp/
+
+.env
+.env.local
+apps/backend/.env
+apps/frontend/.env

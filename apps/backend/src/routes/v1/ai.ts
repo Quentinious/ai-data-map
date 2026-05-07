@@ -6,7 +6,14 @@ import { buildCountrySnapshot } from "./buildCountrySnapshot.js";
 import { buildAreaSnapshot } from "../../services/buildAreaSnapshot.js";
 import { generateAreaSummary } from "../../ai/generateAreaSummary.js";
 import { callLLM, getConfiguredLLMModel, getConfiguredLLMProvider } from "../../ai/llmProvider.js";
-import type { AreaSnapshot, SnapshotFilters } from "../../dto/areaSnapshot.js";
+import {
+  buildSummaryPrompt,
+  buildTemplateSummaryText,
+  getProviderFallbackReason,
+  isValidDistrictId,
+  parseSummaryFilters,
+  type SummaryFallbackReason,
+} from "./summaryUtils.js";
 
 const router = Router();
 
@@ -14,7 +21,7 @@ type SummaryResponseData = {
   summaryText: string;
   source: "openai" | "gemini" | "ollama" | "gigachat" | "template";
   provider: "openai" | "gemini" | "ollama" | "gigachat" | "template";
-  reason?: "disabled_flag" | "missing_api_key" | "provider_error_unsupported_region" | "provider_error_auth" | "provider_error_chat" | "error";
+  reason?: SummaryFallbackReason;
   model?: string;
   district: {
     id: string;
@@ -57,57 +64,6 @@ function cleanupSummaryCache(now = Date.now()): void {
   }
 }
 
-function parseFilters(raw: unknown): SnapshotFilters | null {
-  if (raw === undefined) {
-    return {};
-  }
-
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return null;
-  }
-
-  const source = raw as Record<string, unknown>;
-  const filters: SnapshotFilters = {};
-
-  if (source.rooms !== undefined) {
-    const rooms = Number(source.rooms);
-    if (!Number.isInteger(rooms) || rooms < 1 || rooms > 4) return null;
-    filters.rooms = rooms;
-  }
-
-  if (source.userType !== undefined) {
-    if (typeof source.userType !== "string" || source.userType.trim().length === 0) return null;
-    filters.userType = source.userType.trim();
-  }
-
-  const numericFields = ["minArea", "maxArea", "minPrice", "maxPrice"] as const;
-  for (const field of numericFields) {
-    const value = source[field];
-    if (value === undefined) continue;
-    const parsed = Number(value);
-    if (!Number.isFinite(parsed) || parsed < 0) return null;
-    filters[field] = parsed;
-  }
-
-  if (
-    filters.minArea !== undefined &&
-    filters.maxArea !== undefined &&
-    filters.minArea > filters.maxArea
-  ) {
-    return null;
-  }
-
-  if (
-    filters.minPrice !== undefined &&
-    filters.maxPrice !== undefined &&
-    filters.minPrice > filters.maxPrice
-  ) {
-    return null;
-  }
-
-  return filters;
-}
-
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
   const bucket = summaryRateLimit.get(ip);
@@ -124,77 +80,6 @@ function checkRateLimit(ip: string): boolean {
   bucket.count += 1;
   summaryRateLimit.set(ip, bucket);
   return true;
-}
-
-function formatPrice(rub: number): string {
-  if (rub >= 1_000_000) {
-    return `${(rub / 1_000_000).toFixed(2)} млн ₽`;
-  }
-  return `${Math.round(rub).toLocaleString("ru-RU")} ₽`;
-}
-
-function buildTemplateSummaryText(snapshot: AreaSnapshot): string {
-  const byRooms = Object.entries(snapshot.counts.byRooms)
-    .filter(([, value]) => value > 0)
-    .map(([rooms, value]) => `${rooms}-к: ${value}`)
-    .join(", ");
-
-  const cheapest = snapshot.topListings.cheapestByM2[0];
-  const expensive = snapshot.topListings.expensiveByM2[0];
-
-  const lines = [
-    `Район ${snapshot.district.name}: в анализе ${snapshot.counts.totalListings} объявлений.`,
-    `Цена: медиана ${formatPrice(snapshot.priceRub.median)} (P25 ${formatPrice(snapshot.priceRub.p25)} / P75 ${formatPrice(snapshot.priceRub.p75)}).`,
-    `Цена за м²: медиана ${snapshot.pricePerM2Rub.median.toLocaleString("ru-RU")} ₽/м² (P25 ${snapshot.pricePerM2Rub.p25.toLocaleString("ru-RU")} / P75 ${snapshot.pricePerM2Rub.p75.toLocaleString("ru-RU")}).`,
-    `Площадь: медиана ${snapshot.areaM2.median} м² (P25 ${snapshot.areaM2.p25} / P75 ${snapshot.areaM2.p75}).`,
-    `Комнатность: ${byRooms || "нет данных"}.`,
-  ];
-
-  if (cheapest) {
-    lines.push(`Самое доступное из топа: ${cheapest.rooms}-к, ${cheapest.areaM2} м², ${formatPrice(cheapest.priceRub)}.`);
-  }
-
-  if (expensive) {
-    lines.push(`Самое дорогое из топа: ${expensive.rooms}-к, ${expensive.areaM2} м², ${formatPrice(expensive.priceRub)}.`);
-  }
-
-  return lines.join("\n");
-}
-
-function buildSummaryPrompt(snapshot: AreaSnapshot): string {
-  const byRooms = Object.entries(snapshot.counts.byRooms)
-    .map(([rooms, value]) => `${rooms}-к: ${value}`)
-    .join(", ");
-
-  const cheapest = snapshot.topListings.cheapestByM2
-    .slice(0, 5)
-    .map((item, index) => `${index + 1}) ${item.rooms}-к, ${item.areaM2}м², ${item.pricePerM2} ₽/м², ${item.priceRub} ₽`)
-    .join("; ");
-
-  const expensive = snapshot.topListings.expensiveByM2
-    .slice(0, 5)
-    .map((item, index) => `${index + 1}) ${item.rooms}-к, ${item.areaM2}м², ${item.pricePerM2} ₽/м², ${item.priceRub} ₽`)
-    .join("; ");
-
-  const prompt = [
-    "Ты аналитик рынка жилья. Сформируй краткую сводку на русском языке.",
-    "Формат ответа: 1 короткий абзац (до 900 символов), без markdown.",
-    `Район: ${snapshot.district.name} (${snapshot.district.id})`,
-    `Набор данных: ${snapshot.dataset.mode}, updatedAt=${snapshot.dataset.updatedAt}`,
-    `Объявлений: ${snapshot.counts.totalListings}`,
-    `Цена: median=${snapshot.priceRub.median}, p25=${snapshot.priceRub.p25}, p75=${snapshot.priceRub.p75}`,
-    `Цена за м²: median=${snapshot.pricePerM2Rub.median}, p25=${snapshot.pricePerM2Rub.p25}, p75=${snapshot.pricePerM2Rub.p75}`,
-    `Площадь: median=${snapshot.areaM2.median}, p25=${snapshot.areaM2.p25}, p75=${snapshot.areaM2.p75}`,
-    `Комнатность: ${byRooms}`,
-    `Топ-5 дешевых по ₽/м²: ${cheapest}`,
-    `Топ-5 дорогих по ₽/м²: ${expensive}`,
-  ].join("\n");
-
-  if (prompt.length <= SUMMARY_PROMPT_MAX_CHARS) {
-    return prompt;
-  }
-
-  return `${prompt.slice(0, SUMMARY_PROMPT_MAX_CHARS - 64)}\n[truncated_for_safety=true]`;
 }
 
 router.post("/ai/country-summary", async (req: Request, res: Response) => {
@@ -350,7 +235,7 @@ router.post("/ai/summary", async (req: Request, res: Response) => {
   }
 
   const districtIdRaw = (req.body as { districtId?: unknown }).districtId;
-  if (typeof districtIdRaw !== "string" || districtIdRaw.trim().length === 0) {
+  if (!isValidDistrictId(districtIdRaw)) {
     res.status(400).json({
       error: {
         code: "VALIDATION_ERROR",
@@ -360,7 +245,7 @@ router.post("/ai/summary", async (req: Request, res: Response) => {
     return;
   }
 
-  const filters = parseFilters((req.body as { filters?: unknown }).filters);
+  const filters = parseSummaryFilters((req.body as { filters?: unknown }).filters);
   if (!filters) {
     res.status(400).json({
       error: {
@@ -414,7 +299,7 @@ router.post("/ai/summary", async (req: Request, res: Response) => {
     } else {
       model = configuredModel ?? undefined;
       try {
-        const prompt = buildSummaryPrompt(snapshot);
+        const prompt = buildSummaryPrompt(snapshot, SUMMARY_PROMPT_MAX_CHARS);
         const result = await callLLM({
           messages: [
             {
@@ -433,18 +318,25 @@ router.post("/ai/summary", async (req: Request, res: Response) => {
         reason = undefined;
       } catch (error: unknown) {
         const err = error as Error & { code?: string; status?: number; provider?: string };
+        reason = getProviderFallbackReason(err);
 
-        if (err?.code === "LLM_PROVIDER_UNSUPPORTED_REGION") {
-          reason = "provider_error_unsupported_region";
+        if (reason === "provider_error_unsupported_region") {
           warnings.push("AI недоступен в этом регионе (unsupported_country_region_territory), использован template summary.");
-        } else if (err?.code === "LLM_PROVIDER_AUTH_FAILED") {
-          reason = "provider_error_auth";
+        } else if (reason === "provider_error_auth") {
           warnings.push(`Ошибка аутентификации ${configuredProvider}: ${err?.message ?? "unknown error"}, использован template summary.`);
-        } else if (err?.code === "LLM_PROVIDER_CHAT_FAILED") {
-          reason = "provider_error_chat";
+        } else if (reason === "provider_error_auth_bad_request") {
+          warnings.push(`OAuth-запрос ${configuredProvider} отклонен: ${err?.message ?? "unknown error"}, использован template summary.`);
+        } else if (reason === "provider_error_chat") {
           warnings.push(`Ошибка запроса к ${configuredProvider}: ${err?.message ?? "unknown error"}, использован template summary.`);
+        } else if (reason === "provider_error_tls") {
+          warnings.push(`TLS/SSL ошибка ${configuredProvider}: ${err?.message ?? "unknown error"}, использован template summary.`);
+        } else if (reason === "provider_error_network") {
+          warnings.push(`Сетевая ошибка ${configuredProvider}: ${err?.message ?? "unknown error"}, использован template summary.`);
+        } else if (reason === "provider_error_missing_credentials") {
+          warnings.push("Provider-specific credentials отсутствуют, использован template summary.");
+        } else if (reason === "template_fallback") {
+          warnings.push(`LLM вернул пустой ответ: ${err?.message ?? "unknown error"}, использован template summary.`);
         } else {
-          reason = "error";
           warnings.push(`LLM fallback: ${err?.message ?? "unknown error"}`);
         }
       }

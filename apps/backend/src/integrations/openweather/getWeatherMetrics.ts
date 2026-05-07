@@ -9,9 +9,14 @@ const WEATHER_METRICS = [
   { key: "ow.precip_1h_mm", unit: "mm", label: "Precipitation last hour", sourceKey: ["rain", "1h"] as const, optional: true }
 ] as const;
 
-function getNestedValue(payload: any, path: readonly [string, string]): number | null {
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" ? value as Record<string, unknown> : null;
+}
+
+function getNestedValue(payload: unknown, path: readonly [string, string]): number | null {
   const [first, second] = path;
-  const value = payload?.[first]?.[second];
+  const firstValue = asRecord(asRecord(payload)?.[first]);
+  const value = firstValue?.[second];
   return typeof value === "number" ? value : null;
 }
 
@@ -37,11 +42,12 @@ export async function getOpenWeatherMetrics(lat: number, lon: number): Promise<{
 
   try {
     const payload = await owFetchJson(`/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric`);
-    const asOf = typeof payload?.dt === "number" ? new Date(payload.dt * 1000).toISOString() : nowIso;
+    const payloadRecord = asRecord(payload);
+    const asOf = typeof payloadRecord?.dt === "number" ? new Date(payloadRecord.dt * 1000).toISOString() : nowIso;
 
     const metrics: Metric[] = WEATHER_METRICS.map((metric) => {
       if (metric.key === "ow.precip_1h_mm") {
-        const rainValue = payload?.rain?.["1h"];
+        const rainValue = asRecord(payloadRecord?.rain)?.["1h"];
 
         if (typeof rainValue === "number") {
           return {
@@ -96,7 +102,7 @@ export async function getOpenWeatherMetrics(lat: number, lon: number): Promise<{
     });
 
     return { asOf, metrics };
-  } catch (error) {
+  } catch {
     return { asOf: nowIso, metrics: buildErrorMetrics(nowIso) };
   }
 }

@@ -28,7 +28,6 @@ type DistrictFeatureProperties = {
   districtName: string;
 };
 
-type DistrictGeoJSONFeature = Feature<Geometry, DistrictFeatureProperties>;
 type DistrictGeoJSONCollection = FeatureCollection<Geometry, DistrictFeatureProperties>;
 
 function formatPricePerM2Short(value: number | null): string {

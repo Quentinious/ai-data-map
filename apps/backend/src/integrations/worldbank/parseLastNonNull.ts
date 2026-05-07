@@ -1,4 +1,4 @@
-export function parseLastNonNull(wbResponseJson: any): { value: number | null; year: number | null } {
+export function parseLastNonNull(wbResponseJson: unknown): { value: number | null; year: number | null } {
   const dataArray = Array.isArray(wbResponseJson) ? wbResponseJson[1] : undefined;
 
   if (!Array.isArray(dataArray)) {

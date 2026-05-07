@@ -41,7 +41,7 @@ export async function getWorldBankCoreMetrics(countryCode: string): Promise<Metr
         asOf: parsed.year == null ? {} : { year: parsed.year },
         indicator: item.indicator
       });
-    } catch (error) {
+    } catch {
       metrics.push({
         key: item.key,
         unit: item.unit,

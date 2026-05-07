@@ -1,52 +1,11 @@
 import { describe, it, expect } from "vitest";
 import type { AreaSnapshot } from "../../dto/areaSnapshot.js";
-
-// -----------------------------------------------------------------------
-// Replicated from apps/backend/src/routes/v1/ai.ts for unit testing
-// (pure functions — no side effects, no env reads)
-// -----------------------------------------------------------------------
-
-function formatPrice(rub: number): string {
-  if (rub >= 1_000_000) {
-    return `${(rub / 1_000_000).toFixed(2)} млн ₽`;
-  }
-  return `${Math.round(rub).toLocaleString("ru-RU")} ₽`;
-}
-
-function buildTemplateSummaryText(snapshot: AreaSnapshot): string {
-  const byRooms = Object.entries(snapshot.counts.byRooms)
-    .filter(([, value]) => (value as number) > 0)
-    .map(([rooms, value]) => `${rooms}-к: ${value as number}`)
-    .join(", ");
-
-  const cheapest = snapshot.topListings.cheapestByM2[0];
-  const expensive = snapshot.topListings.expensiveByM2[0];
-
-  const lines = [
-    `Район ${snapshot.district.name}: в анализе ${snapshot.counts.totalListings} объявлений.`,
-    `Цена: медиана ${formatPrice(snapshot.priceRub.median)} (P25 ${formatPrice(snapshot.priceRub.p25)} / P75 ${formatPrice(snapshot.priceRub.p75)}).`,
-    `Цена за м²: медиана ${snapshot.pricePerM2Rub.median.toLocaleString("ru-RU")} ₽/м² (P25 ${snapshot.pricePerM2Rub.p25.toLocaleString("ru-RU")} / P75 ${snapshot.pricePerM2Rub.p75.toLocaleString("ru-RU")}).`,
-    `Площадь: медиана ${snapshot.areaM2.median} м² (P25 ${snapshot.areaM2.p25} / P75 ${snapshot.areaM2.p75}).`,
-    `Комнатность: ${byRooms || "нет данных"}.`,
-  ];
-
-  if (cheapest) {
-    lines.push(`Самое доступное из топа: ${cheapest.rooms}-к, ${cheapest.areaM2} м², ${formatPrice(cheapest.priceRub)}.`);
-  }
-
-  if (expensive) {
-    lines.push(`Самое дорогое из топа: ${expensive.rooms}-к, ${expensive.areaM2} м², ${formatPrice(expensive.priceRub)}.`);
-  }
-
-  return lines.join("\n");
-}
-
-// -----------------------------------------------------------------------
-// Helper: districtId validation (mirrors logic in the route handler)
-// -----------------------------------------------------------------------
-function isValidDistrictId(raw: unknown): raw is string {
-  return typeof raw === "string" && raw.trim().length > 0;
-}
+import {
+  buildTemplateSummaryText,
+  formatPrice,
+  getProviderFallbackReason,
+  isValidDistrictId,
+} from "./summaryUtils.js";
 
 // -----------------------------------------------------------------------
 // Test data
@@ -160,5 +119,25 @@ describe("districtId validation", () => {
     expect(isValidDistrictId(undefined)).toBe(false);
     expect(isValidDistrictId(123)).toBe(false);
     expect(isValidDistrictId({})).toBe(false);
+  });
+});
+
+describe("getProviderFallbackReason", () => {
+  it("maps unsupported region errors", () => {
+    expect(
+      getProviderFallbackReason(Object.assign(new Error("unsupported"), { code: "LLM_PROVIDER_UNSUPPORTED_REGION" }))
+    ).toBe("provider_error_unsupported_region");
+  });
+
+  it("maps GigaChat OAuth 400 to auth bad request", () => {
+    expect(
+      getProviderFallbackReason(Object.assign(new Error("bad scope"), { code: "LLM_PROVIDER_AUTH_FAILED", status: 400 }))
+    ).toBe("provider_error_auth_bad_request");
+  });
+
+  it("maps TLS-looking network errors separately", () => {
+    expect(
+      getProviderFallbackReason(Object.assign(new Error("self-signed certificate"), { code: "LLM_PROVIDER_REQUEST_FAILED" }))
+    ).toBe("provider_error_tls");
   });
 });

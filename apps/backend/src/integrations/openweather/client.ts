@@ -2,7 +2,7 @@ const OPENWEATHER_BASE_URL = process.env.OPENWEATHER_BASE_URL ?? "https://api.op
 const OPENWEATHER_TIMEOUT_MS = Number(process.env.OPENWEATHER_TIMEOUT_MS ?? 8000);
 const OPENWEATHER_API_KEY = process.env.OPENWEATHER_API_KEY ?? "";
 
-export async function owFetchJson(path: string): Promise<any> {
+export async function owFetchJson(path: string): Promise<unknown> {
   const url = new URL(path, OPENWEATHER_BASE_URL);
   url.searchParams.set("appid", OPENWEATHER_API_KEY);
 

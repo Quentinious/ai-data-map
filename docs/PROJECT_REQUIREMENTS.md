@@ -6,15 +6,15 @@ This document describes the course quality requirements and how each is satisfie
 
 ## Levels Overview
 
-| Level | Description |
-|-------|-------------|
-| **3** | Baseline: working code, basic README, runs locally |
-| **4** | Engineering quality: templates, linting, tests, CI, Docker |
-| **5** | Production-ready: load tests, Postman, docs, dependabot, observability |
+| Level | Course grade | Description |
+|-------|--------------|-------------|
+| **3** | Удовлетворительно | Baseline: working code, basic README, runs locally |
+| **4** | Хорошо | Engineering quality: templates, linting, tests, CI, Docker |
+| **5** | Отлично | Production-ready: load tests, Postman, docs, dependabot, observability |
 
 ---
 
-## Level 3 — Baseline ✅
+## Level 3 — Удовлетворительно / Baseline ✅
 
 ### Requirements
 - Working backend API with domain logic
@@ -28,7 +28,7 @@ This document describes the course quality requirements and how each is satisfie
 
 ---
 
-## Level 4 — Engineering Quality ✅
+## Level 4 — Хорошо / Engineering Quality ✅
 
 ### 4.1 GitHub Issue Templates
 
@@ -98,7 +98,7 @@ npm run test
 
 ---
 
-## Level 5 — Production-Ready ✅
+## Level 5 — Отлично / Production-Ready ✅
 
 ### 5.1 Postman Collection
 

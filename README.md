@@ -316,11 +316,11 @@ curl "http://127.0.0.1:4000/api/listings?districtId=centralny&rooms=2"
 ## Quality Checks
 
 ```bash
-npm run typecheck   # TypeScript type checking (all workspaces)
-npm run lint        # ESLint (TypeScript rules, backend + frontend + tools)
-npm run lint:fix    # Auto-fix lint issues where possible
-npm run test        # Vitest unit tests (backend)
-npm run build       # Production build (all workspaces)
+npm.cmd run typecheck   # TypeScript type checking (all workspaces)
+npm.cmd run lint        # ESLint (TypeScript rules, backend + frontend + tools)
+npm.cmd run lint:fix    # Auto-fix lint issues where possible
+npm.cmd run test        # Vitest unit tests (backend)
+npm.cmd run build       # Production build (all workspaces)
 ```
 
 ## Postman
@@ -351,7 +351,7 @@ docker compose up --build
 # Frontend: http://localhost:5173
 ```
 
-**Важно:** секреты передаются через `env_file` → `apps/backend/.env`, который добавлен в `.gitignore` и `.dockerignore`. Не бакируйте ключи в образы.
+**Важно:** секреты передаются через `env_file` → `apps/backend/.env`, который добавлен в `.gitignore` и `.dockerignore`. Не запекайте ключи в образы.
 
 ## Load Testing (k6)
 

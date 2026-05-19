@@ -321,20 +321,30 @@ npm run lint        # ESLint (TypeScript rules, backend + frontend + tools)
 npm run lint:fix    # Auto-fix lint issues where possible
 npm run test        # Vitest unit tests (backend)
 npm run build       # Production build (all workspaces)
+npm run security:audit # npm audit (high severity and above)
 ```
+
+## Decomposition & Task Management
+
+Для декомпозиции и разделения задач используются шаблоны issue и PR-чек-лист:
+
+- `.github/ISSUE_TEMPLATE/epic.md` — крупные инициативы (epic)
+- `.github/ISSUE_TEMPLATE/feature.md` — пользовательские фичи
+- `.github/ISSUE_TEMPLATE/task.md` — конкретные задачи с self-check checklist
+- `.github/PULL_REQUEST_TEMPLATE.md` — PR checklist перед слиянием
 
 ## Postman
 
-Коллекция и окружение находятся в `docs/postman/`:
+Коллекция и окружение находятся в `postman/`:
 
 | Файл | Описание |
 |------|---------|
-| `ai-data-map.postman_collection.json` | 7 запросов ко всем публичным эндпоинтам |
-| `local.postman_environment.json` | Локальное окружение: `baseUrl=http://127.0.0.1:4000`, `districtId=centralny` |
+| `api-collection.json` | 7 запросов ко всем публичным эндпоинтам |
+| `local-environment.json` | Локальное окружение: `baseUrl=http://127.0.0.1:4000`, `districtId=centralny` |
 
 **Импорт в Postman:**
-1. Postman → Import → выберите `ai-data-map.postman_collection.json`
-2. Postman → Import → выберите `local.postman_environment.json`
+1. Postman → Import → выберите `postman/api-collection.json`
+2. Postman → Import → выберите `postman/local-environment.json`
 3. Выберите окружение **"ai-data-map — Local"**
 4. Запускайте запросы
 

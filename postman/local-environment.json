@@ -1,0 +1,49 @@
+{
+  "id": "ai-data-map-local-env",
+  "name": "ai-data-map — Local",
+  "values": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:4000",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "districtId",
+      "value": "centralny",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "rooms",
+      "value": "2",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "minArea",
+      "value": "40",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "maxArea",
+      "value": "80",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "minPrice",
+      "value": "3000000",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "maxPrice",
+      "value": "9000000",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}

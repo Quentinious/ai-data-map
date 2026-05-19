@@ -1,0 +1,125 @@
+{
+  "info": {
+    "_postman_id": "ai-data-map-collection-v1",
+    "name": "ai-data-map",
+    "description": "Novosibirsk housing market API — ai-data-map project",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": ["{{baseUrl}}"],
+          "path": ["health"]
+        },
+        "description": "Service liveness check"
+      }
+    },
+    {
+      "name": "GET /api/areas",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/areas",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "areas"]
+        },
+        "description": "Returns list of all Novosibirsk districts"
+      }
+    },
+    {
+      "name": "GET /api/listings",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/listings?districtId={{districtId}}&rooms={{rooms}}&minArea={{minArea}}&maxArea={{maxArea}}&minPrice={{minPrice}}&maxPrice={{maxPrice}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "listings"],
+          "query": [
+            { "key": "districtId", "value": "{{districtId}}" },
+            { "key": "rooms", "value": "{{rooms}}", "disabled": true },
+            { "key": "minArea", "value": "{{minArea}}", "disabled": true },
+            { "key": "maxArea", "value": "{{maxArea}}", "disabled": true },
+            { "key": "minPrice", "value": "{{minPrice}}", "disabled": true },
+            { "key": "maxPrice", "value": "{{maxPrice}}", "disabled": true }
+          ]
+        },
+        "description": "Returns filtered listings. All query params except districtId are optional."
+      }
+    },
+    {
+      "name": "GET /v1/areas/:districtId/snapshot",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/v1/areas/{{districtId}}/snapshot",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "areas", "{{districtId}}", "snapshot"]
+        },
+        "description": "Deep analytics snapshot for a district: median/P25/P75 for price, price/m², area; room breakdown; top-5 cheapest/most expensive"
+      }
+    },
+    {
+      "name": "GET /v1/map/districts",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/v1/map/districts",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "map", "districts"]
+        },
+        "description": "Choropleth dataset: median ₽/m² and listing count per district"
+      }
+    },
+    {
+      "name": "GET /v1/map/listings",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/v1/map/listings?districtId={{districtId}}&sort=pricePerM2&limit=5",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "map", "listings"],
+          "query": [
+            { "key": "districtId", "value": "{{districtId}}" },
+            { "key": "sort", "value": "pricePerM2" },
+            { "key": "limit", "value": "5" },
+            { "key": "rooms", "value": "{{rooms}}", "disabled": true },
+            { "key": "minArea", "value": "{{minArea}}", "disabled": true },
+            { "key": "maxArea", "value": "{{maxArea}}", "disabled": true },
+            { "key": "minPrice", "value": "{{minPrice}}", "disabled": true },
+            { "key": "maxPrice", "value": "{{maxPrice}}", "disabled": true }
+          ]
+        },
+        "description": "Top-5 listings for a district with coordinates for map markers. sort: publishedAt | priceRub | pricePerM2 | areaM2"
+      }
+    },
+    {
+      "name": "POST /v1/ai/summary",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"districtId\": \"{{districtId}}\",\n  \"filters\": {\n    \"rooms\": 2,\n    \"minArea\": 40,\n    \"maxArea\": 80\n  }\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/v1/ai/summary",
+          "host": ["{{baseUrl}}"],
+          "path": ["v1", "ai", "summary"]
+        },
+        "description": "AI market summary for a district. Falls back to template summary when AI_SUMMARY_ENABLED=false or provider is unreachable."
+      }
+    }
+  ]
+}

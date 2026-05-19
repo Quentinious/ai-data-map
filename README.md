@@ -326,7 +326,7 @@ npm run security:audit # npm audit (high severity and above)
 
 ## Decomposition & Task Management
 
-Для декомпозиции и разделения задач используются шаблоны issue и PR-чеклист:
+Для декомпозиции и разделения задач используются шаблоны issue и PR-чек-лист:
 
 - `.github/ISSUE_TEMPLATE/epic.md` — крупные инициативы (epic)
 - `.github/ISSUE_TEMPLATE/feature.md` — пользовательские фичи

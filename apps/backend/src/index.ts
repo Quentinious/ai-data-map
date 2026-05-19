@@ -34,7 +34,7 @@ loadBackendEnv();
 
 console.log("BOOT: active backend entrypoint: apps/backend/src/index.ts");
 
-const app = express();
+export const app = express();
 const port = Number(process.env.PORT ?? 4000);
 
 app.use(cors());
@@ -186,8 +186,12 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
-app.listen(port, () => {
-  console.log(`Backend listening on http://localhost:${port}`);
-  console.log(`Health: http://localhost:${port}/health`);
-  console.log(`API v1 Snapshot: http://localhost:${port}/v1/countries/US/snapshot`);
-});
+const isMainModule = process.argv[1] ? path.resolve(process.argv[1]) === __filename : false;
+
+if (isMainModule) {
+  app.listen(port, () => {
+    console.log(`Backend listening on http://localhost:${port}`);
+    console.log(`Health: http://localhost:${port}/health`);
+    console.log(`API v1 Snapshot: http://localhost:${port}/v1/countries/US/snapshot`);
+  });
+}

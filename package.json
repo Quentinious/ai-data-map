@@ -5,11 +5,15 @@
   "main": "index.js",
   "scripts": {
     "dev": "concurrently \"npm run dev -w apps/backend\" \"npm run dev -w apps/frontend\"",
-    "build": "npm run build -ws",
-    "typecheck": "npm run typecheck -ws",
+    "build": "npm run build --ws",
+    "build:backend": "npm run build -w apps/backend",
+    "build:frontend": "npm run build -w apps/frontend",
+    "build:tools": "npm run build -w tools",
+    "typecheck": "npm run typecheck --ws",
     "lint": "eslint apps/backend/src apps/frontend/src tools",
     "lint:fix": "eslint apps/backend/src apps/frontend/src tools --fix",
-    "test": "npm run test -ws --if-present",
+    "test": "npm run test --ws --if-present",
+    "security:audit": "npm audit --audit-level=high",
     "geo:convert-nsk-districts": "tsx tools/geo/arcgis-boundary-to-geojson.ts",
     "load:test:map": "k6 run tests/load/map-districts.k6.js",
     "load:test:ai": "k6 run tests/load/ai-summary.k6.js"
